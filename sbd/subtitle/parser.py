@@ -38,26 +38,16 @@ class SRTParser:
     def parse(self):
         with self.filepath.open("r", encoding=self.encoding) as fh:
             idx: int | None = None
-            content: list[str] = []
             timestamps: Timestamps | None = None
+            content: list[str] = []
             for self.line_idx, line in enumerate(fh, start=1):
                 line = line.strip()
                 if not line:
                     if content and idx is not None and timestamps is not None:
-                        self.subtitles.append(
-                            SubTitle(
-                                idx=idx,
-                                filepath=self.filepath,
-                                start=timestamps.start,
-                                end=timestamps.end,
-                                content=" ".join(content),
-                            )
-                        )
-                        idx = None
-                        content = []
-                        timestamps = None
-
+                        self._flush(idx, timestamps, content)
+                        idx, timestamps, content = None, None, []
                     continue
+
                 if idx is None:
                     idx = self._parse_idx_line(line)
                 elif timestamps is None:
@@ -65,15 +55,7 @@ class SRTParser:
                 else:
                     content.append(line)
             if content and idx is not None and timestamps is not None:
-                self.subtitles.append(
-                    SubTitle(
-                        idx=idx,
-                        filepath=self.filepath,
-                        start=timestamps.start,
-                        end=timestamps.end,
-                        content=" ".join(content),
-                    )
-                )
+                self._flush(idx, timestamps, content)
 
     def _parse_idx_line(self, line: str) -> int:
         try:
@@ -114,6 +96,17 @@ class SRTParser:
                     ),
                 )
         return Timestamps(*timestamps)
+
+    def _flush(self, idx: int, timestamps: Timestamps, content: list[str]) -> None:
+        self.subtitles.append(
+            SubTitle(
+                idx=idx,
+                filepath=self.filepath,
+                start=timestamps.start,
+                end=timestamps.end,
+                content=" ".join(content),
+            )
+        )
 
     @classmethod
     def read(cls, filepath: Path) -> "SRTParser":
