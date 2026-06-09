@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import NamedTuple
 
+from sbd.subtitle import utils
 from sbd.utils.detect_encoding import detect_encoding
 
 
@@ -28,8 +29,9 @@ class SRTParsingError(ValueError):
 class SRTParser:
     timestamp_line_pattern = re.compile(r"^(?P<start>.*) --> (?P<end>.*)$")
 
-    def __init__(self, filepath: Path):
+    def __init__(self, filepath: Path, remove_html_tags: bool = True):
         self.filepath = filepath
+        self.remove_html_tags = remove_html_tags
         self.encoding = detect_encoding(self.filepath)
         self.line_idx: int = 0
         self._next_line: str | None = None
@@ -53,7 +55,7 @@ class SRTParser:
                 elif timestamps is None:
                     timestamps = self._parse_timestamps_line(line)
                 else:
-                    content.append(line)
+                    content.append(self._parse_content_line(line))
             if content and idx is not None and timestamps is not None:
                 self._flush(idx, timestamps, content)
 
@@ -95,7 +97,9 @@ class SRTParser:
                         start_end=start_end, filepath=self.filepath, line_idx=self.line_idx
                     ),
                 )
-        return Timestamps(*timestamps)
+
+    def _parse_content_line(self, line: str) -> str:
+        return line if not self.remove_html_tags else utils.remove_html_tags(line)
 
     def _flush(self, idx: int, timestamps: Timestamps, content: list[str]) -> None:
         self.subtitles.append(
@@ -109,7 +113,7 @@ class SRTParser:
         )
 
     @classmethod
-    def read(cls, filepath: Path) -> "SRTParser":
-        _self = cls(filepath)
+    def read(cls, filepath: Path, remove_html_tags: bool = True) -> "SRTParser":
+        _self = cls(filepath, remove_html_tags)
         _self.parse()
         return _self
