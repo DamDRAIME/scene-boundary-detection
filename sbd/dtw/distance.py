@@ -11,7 +11,7 @@ class DistanceFunction(StrEnum):
     COSINE = auto()
     DOT_PRODUCT = auto()
     EUCLIDEAN = auto()
-    MANHATTTAN = auto()
+    MANHATTAN = auto()
 
 
 def dot_product(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
@@ -79,6 +79,6 @@ def get_distance_fn(distance_fn: DistanceFunction) -> Callable:
         return partial(negate_fn, dot_product)
     if distance_fn == DistanceFunction.EUCLIDEAN:
         return euclidean
-    if distance_fn == DistanceFunction.MANHATTTAN:
+    if distance_fn == DistanceFunction.MANHATTAN:
         return manhattan
     raise NotImplementedError(f"{distance_fn} has not yet been implemented.")

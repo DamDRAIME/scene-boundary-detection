@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from enum import StrEnum, auto
-from pathlib import Path
 
 import torch
 
@@ -19,7 +18,7 @@ class Cell:
 
 class Plot(StrEnum):
     ALIGNMENT = auto()
-    COUNTOUR = auto()
+    CONTOUR = auto()
     TWO_WAY = auto()
     THREE_WAY = auto()
 
@@ -36,10 +35,10 @@ class DTWOutput:
     b: torch.Tensor
     distance_fn: DistanceFunction
     distance: float
-    distance_normalized: float
+    # distance_normalized: float
     optimal_warping_path: torch.Tensor
-    cost_matrix: torch.Tensor | None
-    accumulated_cost_matrix: torch.Tensor | None
+    cost_matrix: torch.Tensor | None = None
+    accumulated_cost_matrix: torch.Tensor | None = None
 
 
 def _compute_cost_matrix(a: torch.Tensor, b: torch.Tensor, distance_fn: DistanceFunction) -> torch.Tensor:
@@ -87,22 +86,22 @@ def dtw(
     a: torch.Tensor,
     b: torch.Tensor,
     distance_fn: DistanceFunction,
-    step_pattern,
-    window: Window | None = None,
+    # step_pattern,
+    # window: Window | None = None,
     keep_artifacts: bool = False,
 ) -> DTWOutput:
     assert a.dim() == 2, f"Expected `a` to be a tensor with 2 dimensions, got {a.dim()} dimension(s)."
     assert b.dim() == 2, f"Expected `b` to be a tensor with 2 dimensions, got {b.dim()} dimension(s)."
 
     cm = _compute_cost_matrix(a, b, distance_fn)
-    acm = _compute_accumulated_cost_matrix(a, b, cm)
+    acm = _compute_accumulated_cost_matrix(cm)
     path = _compute_optimal_warping_path(acm)
 
     return DTWOutput(
         a,
         b,
         distance_fn,
-        distance=acm[-1, -1],
+        distance=acm[-1, -1].item(),
         optimal_warping_path=path,
         cost_matrix=cm if keep_artifacts else None,
         accumulated_cost_matrix=acm if keep_artifacts else None,
