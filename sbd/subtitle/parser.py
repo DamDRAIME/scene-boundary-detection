@@ -36,9 +36,9 @@ class SRTParsingError(ValueError):
 
 class SRTParser:
     timestamp_line_pattern = re.compile(
-        r"^(?P<start>[\d:,]*)"  # Start timestamp
+        r"^(?P<start>[\d:,.]+)"  # Start timestamp
         r"\s*-->\s*"  # Timestamps separator
-        r"(?P<end>[\d:,]*)"  # End timestamp
+        r"(?P<end>[\d:,.]+)"  # End timestamp
         r"(?:\s+X1:(?P<x1>\d+))?(?:\s+X2:(?P<x2>\d+))?(?:\s+Y1:(?P<y1>\d+))?(?:\s+Y2:(?P<y2>\d+))?$"  # Coordinates
     )
 
