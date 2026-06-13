@@ -113,7 +113,8 @@ class SRTParser:
                 )
         if m.group("x1") is None:
             return Timestamps(*timestamps), None
-        coords = Coordinates(*[m.group(coord) for coord in ["x1", "y1", "x2", "y2"]])
+        # Assumes that if X1 is set then the other coordinates will be as well
+        coords = Coordinates(*[int(m.group(coord)) for coord in ["x1", "y1", "x2", "y2"]])
         return Timestamps(*timestamps), coords
 
     def _parse_content_line(self, line: str) -> str:
