@@ -52,9 +52,28 @@ def _compute_accumulated_cost_matrix(cost_matrix: torch.Tensor) -> torch.Tensor:
     acm[0, 0] = cm[0, 0]
     acm[:, 0] = cm[:, 0].cumsum(dim=0)
     acm[0, :] = cm[0, :].cumsum(dim=0)
-    for y in range(1, acm.shape[0]):
-        for x in range(1, acm.shape[1]):
-            acm[y, x] = cm[y, x] + min(acm[y - 1, x], acm[y, x - 1], acm[y - 1, x - 1])
+    # acm[i, j] (on the anti-diagonal / k=i+j) depends solely on (i-1, j), (i, j-1), and (i-1, j-1) — all from the
+    # previous anti-diagonal (i.e.: k-1).
+    # So every cell where i+j = k is independent of its neighbors on the same anti-diagonal and can be computed in
+    # one vectorized step. The outer loop walks N+M-3 anti-diagonals instead of N×M individual cells.
+    y, x = cm.shape
+    for diag in range(2, y + x - 1):
+        i_start = max(1, diag - x + 1)
+        i_end = min(y, diag)
+        i = torch.arange(i_start, i_end, device=cm.device)
+        j = diag - i
+        acm[i, j] = (
+            cm[i, j]
+            + torch.stack(
+                [
+                    acm[i - 1, j],  # from above
+                    acm[i, j - 1],  # from left
+                    acm[i - 1, j - 1],  # from diagonal (behind)
+                ]
+            )
+            .min(dim=0)
+            .values
+        )
     return acm
 
 
