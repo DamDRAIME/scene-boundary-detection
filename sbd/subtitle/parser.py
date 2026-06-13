@@ -51,6 +51,7 @@ class SRTParser:
         self.subtitles: list[SubTitle] = []
 
     def parse(self):
+        self.subtitles = []
         with self.filepath.open("r", encoding=self.encoding) as fh:
             idx: int | None = None
             timestamps: Optional[Timestamps] = None
