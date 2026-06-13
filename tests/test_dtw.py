@@ -11,12 +11,17 @@ from sbd.dtw.distance import (
     get_distance_fn,
     manhattan,
 )
+import warnings
+
 from sbd.dtw.dtw import (
-    _compute_accumulated_cost_matrix,
+    _compute_accumulated_cost_matrix_cpu,
+    _compute_accumulated_cost_matrix_gpu,
     _compute_cost_matrix,
     _compute_optimal_warping_path,
+    dtw,
 )
 from sbd.dtw.utils import negate_fn, normalize_batch_of_tensors
+from sbd.utils.gpu_check import is_cuda_available
 
 # ─── utils.py ─────────────────────────────────────────────────────────────────
 
@@ -210,64 +215,64 @@ class TestComputeCostMatrix:
 class TestComputeAccumulatedCostMatrix:
     def test_known_2x2(self):
         cm = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
-        acm = _compute_accumulated_cost_matrix(cm)
+        acm = _compute_accumulated_cost_matrix_cpu(cm)
         # acm[0,0]=1, acm[0,1]=3, acm[1,0]=4, acm[1,1]=4+min(1,3,4)=5
         expected = torch.tensor([[1.0, 3.0], [4.0, 5.0]])
         assert torch.allclose(acm, expected)
 
     def test_origin_matches_cost_matrix(self):
         cm = torch.rand(4, 5).abs()
-        acm = _compute_accumulated_cost_matrix(cm)
+        acm = _compute_accumulated_cost_matrix_cpu(cm)
         assert acm[0, 0] == cm[0, 0]
 
     def test_first_row_is_cumsum(self):
         cm = torch.tensor([[1.0, 2.0, 3.0]])
-        acm = _compute_accumulated_cost_matrix(cm)
+        acm = _compute_accumulated_cost_matrix_cpu(cm)
         assert torch.allclose(acm[0], torch.tensor([1.0, 3.0, 6.0]))
 
     def test_first_col_is_cumsum(self):
         cm = torch.tensor([[1.0], [2.0], [3.0]])
-        acm = _compute_accumulated_cost_matrix(cm)
+        acm = _compute_accumulated_cost_matrix_cpu(cm)
         assert torch.allclose(acm[:, 0], torch.tensor([1.0, 3.0, 6.0]))
 
     def test_output_shape_preserved(self):
         cm = torch.rand(5, 7)
-        acm = _compute_accumulated_cost_matrix(cm)
+        acm = _compute_accumulated_cost_matrix_cpu(cm)
         assert acm.shape == cm.shape
 
 
 class TestComputeOptimalWarpingPath:
     def test_starts_at_origin(self):
         cm = torch.rand(3, 4)
-        acm = _compute_accumulated_cost_matrix(cm)
+        acm = _compute_accumulated_cost_matrix_cpu(cm)
         path = _compute_optimal_warping_path(acm)
         assert path[0, 0].item() == 0 and path[0, 1].item() == 0
 
     def test_ends_at_destination(self):
         n, m = 3, 4
         cm = torch.rand(n, m)
-        acm = _compute_accumulated_cost_matrix(cm)
+        acm = _compute_accumulated_cost_matrix_cpu(cm)
         path = _compute_optimal_warping_path(acm)
         assert path[-1, 0].item() == n - 1 and path[-1, 1].item() == m - 1
 
     def test_diagonal_path_for_identical_sequences(self):
         a = torch.eye(3)
         cm = _compute_cost_matrix(a, a, DistanceFunction.EUCLIDEAN)
-        acm = _compute_accumulated_cost_matrix(cm)
+        acm = _compute_accumulated_cost_matrix_cpu(cm)
         path = _compute_optimal_warping_path(acm)
         expected = torch.tensor([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]])
         assert torch.allclose(path, expected)
 
     def test_path_is_monotonically_non_decreasing(self):
         cm = torch.rand(4, 5)
-        acm = _compute_accumulated_cost_matrix(cm)
+        acm = _compute_accumulated_cost_matrix_cpu(cm)
         path = _compute_optimal_warping_path(acm)
         diffs = path[1:] - path[:-1]
         assert (diffs >= 0).all(), "Path must only move forward (non-decreasing in both dims)"
 
     def test_each_step_advances_at_least_one_dim(self):
         cm = torch.rand(4, 5)
-        acm = _compute_accumulated_cost_matrix(cm)
+        acm = _compute_accumulated_cost_matrix_cpu(cm)
         path = _compute_optimal_warping_path(acm)
         step_sizes = (path[1:] - path[:-1]).sum(dim=1)
         assert (step_sizes >= 1).all(), "Each step must advance in at least one dimension"
