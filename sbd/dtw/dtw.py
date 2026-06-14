@@ -8,23 +8,6 @@ from sbd.dtw.distance import DistanceFunction, get_distance_fn
 from sbd.utils.gpu_check import is_cuda_available
 
 
-@dataclass
-class Cell:
-    y: int
-    x: int
-
-    @property
-    def is_origin(self) -> bool:
-        return not (self.x or self.y)
-
-
-class Plot(StrEnum):
-    ALIGNMENT = auto()
-    CONTOUR = auto()
-    TWO_WAY = auto()
-    THREE_WAY = auto()
-
-
 class Window(StrEnum):
     ITAKURA = auto()
     SAKOECHIBA = auto()
