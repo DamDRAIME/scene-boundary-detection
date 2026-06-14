@@ -2,6 +2,7 @@ from typing import Any, Callable
 
 from torch import Tensor
 import torch
+import torchvision.transforms.functional as F
 
 
 def normalize_batch_of_tensors(tensors: Tensor) -> Tensor:
@@ -36,3 +37,17 @@ def normalize_batch_of_tensors(tensors: Tensor) -> Tensor:
 
 def negate_fn(fn: Callable, *args) -> Any:
     return -1 * fn(*args)
+
+
+def gaussian_blur(tensors: Tensor) -> Tensor:
+    i = 0
+    while tensors.dim < 4:
+        tensors = tensors.unsqueeze(0)
+        i += 1
+
+    t_blurred = F.gaussian_blur(tensors, kernel_size=[5, 5], sigma=[1.0, 1.0])
+
+    while i > 0:
+        t_blurred = t_blurred.squeeze()
+
+    return t_blurred
