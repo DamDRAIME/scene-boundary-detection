@@ -34,3 +34,13 @@ class SRTUtterance:
     end: datetime
     content: str
     subtitles_indices: list[int]
+
+    @classmethod
+    def from_subtitles(cls, *subtitles: SubTitle, idx: int) -> "SRTUtterance":
+        return cls(
+            idx=idx,
+            content=" ".join([s.content for s in subtitles]),
+            start=subtitles[0].start,
+            end=subtitles[-1].end,
+            subtitles_indices=[s.idx for s in subtitles],
+        )
