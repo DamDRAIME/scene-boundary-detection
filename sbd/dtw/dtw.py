@@ -118,7 +118,10 @@ def _compute_accumulated_cost_matrix_gpu(cost_matrix: torch.Tensor) -> torch.Ten
 
 
 # Compiled once; deferred to first call. Only invoked when CC >= 7.0.
-_compute_accumulated_cost_matrix_gpu_compiled = torch.compile(_compute_accumulated_cost_matrix_gpu, backend="inductor")
+if is_cuda_available(min_cc=7):
+    _compute_accumulated_cost_matrix_gpu_compiled = torch.compile(
+        _compute_accumulated_cost_matrix_gpu, backend="inductor"
+    )
 
 
 def _compute_optimal_warping_path(accumulated_cost_matrix: torch.Tensor) -> torch.Tensor:
