@@ -32,22 +32,24 @@ class SRTParser:
             timestamps: Optional[Timestamps] = None
             coordinates: Optional[Coordinates] = None
             content: list[str] = []
+            subtitle_header_line_idx: int = 1
             for self.line_idx, line in enumerate(fh, start=1):
                 line = line.strip()
                 if not line:
                     if content and idx is not None and timestamps is not None:
-                        self._flush(idx, timestamps, content, coordinates)
+                        self._flush(idx, subtitle_header_line_idx, timestamps, content, coordinates)
                         idx, timestamps, content = None, None, []
                     continue
 
                 if idx is None:
                     idx = self._parse_idx_line(line)
+                    subtitle_header_line_idx = self.line_idx
                 elif timestamps is None:
                     timestamps, coordinates = self._parse_timestamps_line(line)
                 else:
                     content.append(self._parse_content_line(line))
             if content and idx is not None and timestamps is not None:
-                self._flush(idx, timestamps, content, coordinates)
+                self._flush(idx, subtitle_header_line_idx, timestamps, content, coordinates)
 
     def _parse_idx_line(self, line: str) -> int:
         try:
@@ -97,12 +99,18 @@ class SRTParser:
         return line if not self.remove_html_tags else utils.remove_html_tags(line)
 
     def _flush(
-        self, idx: int, timestamps: Timestamps, content: list[str], coordinates: Optional[Coordinates] = None
+        self,
+        idx: int,
+        subtitle_header_line_idx: int,
+        timestamps: Timestamps,
+        content: list[str],
+        coordinates: Optional[Coordinates] = None,
     ) -> None:
         self.subtitles.append(
             SubTitle(
                 idx=idx,
                 filepath=self.filepath,
+                line_idx=subtitle_header_line_idx,
                 start=timestamps.start,
                 end=timestamps.end,
                 content=" ".join(content),

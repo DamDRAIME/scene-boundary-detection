@@ -20,6 +20,7 @@ class Coordinates(NamedTuple):
 class SubTitle:
     idx: int
     filepath: Path
+    line_idx: int
     start: datetime
     end: datetime
     content: str
