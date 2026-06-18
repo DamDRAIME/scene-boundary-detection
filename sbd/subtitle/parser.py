@@ -1,37 +1,12 @@
 import re
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import Optional
 
 from sbd.subtitle import utils
+from sbd.subtitle.exceptions import SRTParsingError
+from sbd.subtitle.typings import Timestamps, Coordinates, SubTitle
 from sbd.utils.detect_encoding import detect_encoding
-
-
-class Timestamps(NamedTuple):
-    start: datetime
-    end: datetime
-
-
-class Coordinates(NamedTuple):
-    x1: int
-    y1: int
-    x2: int
-    y2: int
-
-
-@dataclass
-class SubTitle:
-    idx: int
-    filepath: Path
-    start: datetime
-    end: datetime
-    content: str
-    coordinates: Optional[Coordinates] = None
-
-
-class SRTParsingError(ValueError):
-    """Error linked to the parsing of a SRT file"""
 
 
 class SRTParser:
