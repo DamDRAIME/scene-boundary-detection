@@ -41,7 +41,7 @@ def negate_fn(fn: Callable, *args) -> Any:
 
 def gaussian_blur(tensors: Tensor) -> Tensor:
     i = 0
-    while tensors.dim < 4:
+    while tensors.dim() < 4:
         tensors = tensors.unsqueeze(0)
         i += 1
 
@@ -49,5 +49,6 @@ def gaussian_blur(tensors: Tensor) -> Tensor:
 
     while i > 0:
         t_blurred = t_blurred.squeeze()
+        i -= 1
 
     return t_blurred
