@@ -33,11 +33,11 @@ def plot(
     fig, ax = plt.subplots(figsize=(6, 6))
 
     # Heatmap
-    ax.imshow(cm.T, origin="lower", cmap=sns.cubehelix_palette(as_cmap=True))
+    ax.imshow(cm.T.cpu(), origin="lower", cmap=sns.cubehelix_palette(as_cmap=True))
 
     # Contour - The Cost Matrix is blurred to have smoother contour lines
     cm_blurred = gaussian_blur(cm.T)
-    co = ax.contour(cm_blurred, colors="#5c5c5c", linewidths=1, linestyles="solid")
+    co = ax.contour(cm_blurred.cpu(), colors="#5c5c5c", linewidths=1, linestyles="solid")
     ax.clabel(co)
 
     # Optimal path
