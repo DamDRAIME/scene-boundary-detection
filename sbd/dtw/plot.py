@@ -25,7 +25,7 @@ def plot(
     display_optimal_path: bool = True,
 ) -> Path:
     assert (
-        dtw.cost_matrix
+        dtw.cost_matrix is not None
     ), "Plotting the results of the DTW, requires DTW's artifacts. Set `keep_artifacts` to True when using `dtw()`"
 
     cm = dtw.cost_matrix
@@ -53,17 +53,3 @@ def plot(
 
     fig.savefig(dst_filepath)
     return dst_filepath
-
-
-# import numpy as np
-
-# _idx = np.linspace(0, 6.28, num=300)
-# x = (np.sin(_idx) + np.random.uniform(0, 0.1, len(_idx)),)
-# y = np.cos(_idx)
-# x = np.stack([x, np.ones_like(x)], axis=-1).squeeze()
-# y = np.stack([y, np.ones_like(y)], axis=-1).squeeze()
-# a = torch.Tensor(x)
-# b = torch.Tensor(y)
-# res = dtw(a, b, DistanceFunction.EUCLIDEAN, keep_artifacts=True)
-# # print(res.optimal_warping_path)
-# plot(res, "conout.png")
