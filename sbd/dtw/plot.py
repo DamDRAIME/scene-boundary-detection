@@ -22,6 +22,7 @@ def plot(
     type: PlotType = PlotType.CONTOUR,
     x_label: str = "Query",
     y_label: str = "Reference",
+    display_optimal_path: bool = True,
 ) -> Path:
     assert (
         dtw.cost_matrix
@@ -40,8 +41,11 @@ def plot(
     ax.clabel(co)
 
     # Optimal path
-    ax.plot(*zip(*dtw.optimal_warping_path), color="#392b3b", linewidth=2, linestyle="dashed", label="optimal path")
-    labelLines(plt.gca().get_lines(), align=True)  # Align label along line
+    if display_optimal_path:
+        ax.plot(
+            *zip(*dtw.optimal_warping_path), color="#392b3b", linewidth=2, linestyle="dashed", label="optimal path"
+        )
+        labelLines(plt.gca().get_lines(), align=True)  # Align label along line
 
     # Labels and title
     ax.set_xlabel(x_label)
