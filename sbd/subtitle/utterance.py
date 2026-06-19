@@ -10,7 +10,7 @@ def subtitles_to_utterances(
 ) -> list[SRTUtterance]:
     def flush_buffer():
         nonlocal buffer, utterances, id_generator
-        utterances.append(SRTUtterance.from_subtitles(*buffer, idx=id_generator.next))
+        utterances.append(SRTUtterance.from_subtitles(*buffer, idx=id_generator.next()))
         buffer = []
 
     def break_two_people_dialogue(subtitle: SubTitle):
