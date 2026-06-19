@@ -26,12 +26,10 @@ def subtitles_to_utterances(
             utterances.append(SRTUtterance.from_subtitles(subtitle, idx=id_generator.next()))
             return
         first_u, second_u = parts
-        mid_time = subtitle.start + ((subtitle.end - subtitle.start) / 2)
         utterances.append(
             SRTUtterance(
                 idx=id_generator.next(),
-                start=subtitle.start,
-                end=mid_time,
+                timestamp=subtitle.timestamp.first_half(),
                 content=first_u,
                 subtitles_indices=[subtitle.idx],
             )
@@ -40,8 +38,7 @@ def subtitles_to_utterances(
             utterances.append(
                 SRTUtterance(
                     idx=id_generator.next(),
-                    start=mid_time,
-                    end=subtitle.end,
+                    timestamp=subtitle.timestamp.second_half(),
                     content=second_u,
                     subtitles_indices=[subtitle.idx],
                 )
@@ -49,7 +46,7 @@ def subtitles_to_utterances(
         else:
             subt = deepcopy(subtitle)
             subt.content = second_u
-            subt.start = mid_time
+            subt.timestamp = subtitle.timestamp.second_half()
             buffer.append(subt)
 
     id_generator = Counter()
