@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -62,11 +62,11 @@ class SRTParser:
             )
 
     def _parse_timestamps_line(self, line: str) -> tuple[Timestamps, Optional[Coordinates]]:
-        def decode_timestamp(timestamp: str) -> datetime:
+        def decode_timestamp(timestamp: str) -> timedelta:
             formats = ["%H:%M:%S,%f", "%H:%M:%S.%f", "%M:%S,%f", "%M:%S.%f"]
             for format in formats:
                 try:
-                    return datetime.strptime(timestamp, format)
+                    return utils.timedelta_strptime(timestamp, format)
                 except ValueError:
                     continue
             raise ValueError()
@@ -111,8 +111,7 @@ class SRTParser:
                 idx=idx,
                 filepath=self.filepath,
                 line_idx=subtitle_header_line_idx,
-                start=timestamps.start,
-                end=timestamps.end,
+                timestamp=timestamps,
                 content=" ".join(content),
                 coordinates=coordinates,
             )
