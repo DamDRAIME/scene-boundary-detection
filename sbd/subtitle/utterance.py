@@ -1,8 +1,8 @@
 from copy import deepcopy
 import warnings
 
-from sbd.subtitle.typings import SubTitle, SRTUtterance
-from sbd.utils.counter import Counter
+from sbd.subtitle.models import SubTitle, SRTUtterance
+from sbd.shared.utils.counter import Counter
 
 
 def subtitles_to_utterances(
@@ -31,7 +31,7 @@ def subtitles_to_utterances(
                 idx=id_generator.next(),
                 timestamp=subtitle.timestamp.first_half(),
                 content=first_u,
-                subtitles_indices=[subtitle.idx],
+                subtitles=[subtitle],
             )
         )
         if second_u.endswith(end_sentence_markers):
@@ -40,7 +40,7 @@ def subtitles_to_utterances(
                     idx=id_generator.next(),
                     timestamp=subtitle.timestamp.second_half(),
                     content=second_u,
-                    subtitles_indices=[subtitle.idx],
+                    subtitles=[subtitle],
                 )
             )
         else:
