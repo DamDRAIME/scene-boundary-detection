@@ -21,7 +21,7 @@ from sbd.dtw.dtw import (
     dtw,
 )
 from sbd.dtw.utils import negate_fn, normalize_batch_of_tensors
-from sbd.utils.gpu_check import is_cuda_available
+from sbd.shared.utils.gpu_check import is_cuda_available
 
 # ─── utils.py ─────────────────────────────────────────────────────────────────
 
