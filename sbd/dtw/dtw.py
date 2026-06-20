@@ -5,7 +5,7 @@ from enum import StrEnum, auto
 import torch
 
 from sbd.dtw.distance import DistanceFunction, get_distance_fn
-from sbd.utils.gpu_check import is_cuda_available
+from sbd.shared.utils.gpu_check import is_cuda_available
 
 
 class Window(StrEnum):

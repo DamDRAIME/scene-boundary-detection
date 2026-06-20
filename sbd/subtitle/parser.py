@@ -1,15 +1,15 @@
 import re
-from datetime import timedelta
 from pathlib import Path
 from typing import Optional
 
 from sbd.subtitle import utils
 from sbd.subtitle.exceptions import SRTParsingError
-from sbd.subtitle.typings import Timestamps, Coordinates, SubTitle
-from sbd.utils.detect_encoding import detect_encoding
+from sbd.subtitle.models import Timestamps, Coordinates, SubTitle
+from sbd.shared.utils.detect_encoding import detect_encoding
+from sbd.shared.utils.timedelta import timedelta_parse
 
 
-class SRTParser:
+class SubtitleParser:
     timestamp_line_pattern = re.compile(
         r"^(?P<start>[\d:,.]+)"  # Start timestamp
         r"\s*-->\s*"  # Timestamps separator
@@ -17,8 +17,8 @@ class SRTParser:
         r"(?:\s+X1:(?P<x1>\d+))?(?:\s+X2:(?P<x2>\d+))?(?:\s+Y1:(?P<y1>\d+))?(?:\s+Y2:(?P<y2>\d+))?$"  # Coordinates
     )
 
-    def __init__(self, filepath: Path, remove_html_tags: bool = True):
-        self.filepath = filepath
+    def __init__(self, filepath: Path | str, remove_html_tags: bool = True):
+        self.filepath = Path(filepath)
         self.remove_html_tags = remove_html_tags
         self.encoding = detect_encoding(self.filepath)
         self.line_idx: int = 0
@@ -26,7 +26,7 @@ class SRTParser:
         self.subtitles: list[SubTitle] = []
 
     def parse(self):
-        self.subtitles = []
+        self.subtitles = []  # Reset for the method to be idempotent
         with self.filepath.open("r", encoding=self.encoding) as fh:
             idx: int | None = None
             timestamps: Optional[Timestamps] = None
@@ -51,6 +51,12 @@ class SRTParser:
             if content and idx is not None and timestamps is not None:
                 self._flush(idx, subtitle_header_line_idx, timestamps, content, coordinates)
 
+    @classmethod
+    def read(cls, filepath: Path | str, remove_html_tags: bool = True) -> "SubtitleParser":
+        _self = cls(filepath, remove_html_tags)
+        _self.parse()
+        return _self
+
     def _parse_idx_line(self, line: str) -> int:
         try:
             return int(line.strip())
@@ -62,15 +68,6 @@ class SRTParser:
             )
 
     def _parse_timestamps_line(self, line: str) -> tuple[Timestamps, Optional[Coordinates]]:
-        def decode_timestamp(timestamp: str) -> timedelta:
-            formats = ["%H:%M:%S,%f", "%H:%M:%S.%f", "%M:%S,%f", "%M:%S.%f"]
-            for format in formats:
-                try:
-                    return utils.timedelta_strptime(timestamp, format)
-                except ValueError:
-                    continue
-            raise ValueError()
-
         line = line.strip()
         m = self.timestamp_line_pattern.match(line)
         if not m:
@@ -82,7 +79,7 @@ class SRTParser:
         timestamps = []
         for start_end in ["start", "end"]:
             try:
-                timestamps.append(decode_timestamp(m.group(start_end)))
+                timestamps.append(timedelta_parse(m.group(start_end)))
             except ValueError:
                 raise SRTParsingError(
                     "Invalid {start_end} timestamp at {filepath}:{line_idx}".format(
@@ -116,9 +113,3 @@ class SRTParser:
                 coordinates=coordinates,
             )
         )
-
-    @classmethod
-    def read(cls, filepath: Path, remove_html_tags: bool = True) -> "SRTParser":
-        _self = cls(filepath, remove_html_tags)
-        _self.parse()
-        return _self

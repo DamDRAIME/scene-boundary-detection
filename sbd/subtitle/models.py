@@ -1,26 +1,8 @@
 from dataclasses import dataclass
-from datetime import timedelta
 from pathlib import Path
 from typing import NamedTuple, Optional
 
-
-@dataclass
-class Timestamps:
-    start: timedelta
-    end: timedelta
-
-    @property
-    def mid(self):
-        return self.start + ((self.end - self.start) / 2)
-
-    def first_half(self) -> "Timestamps":
-        return Timestamps(self.start, self.mid)
-
-    def second_half(self) -> "Timestamps":
-        return Timestamps(self.mid, self.end)
-
-    def __repr__(self) -> str:
-        return f"{str(self.start)} --> {str(self.end)}"
+from sbd.shared.models import Timestamps
 
 
 class Coordinates(NamedTuple):
@@ -45,7 +27,7 @@ class SRTUtterance:
     idx: int
     timestamp: Timestamps
     content: str
-    subtitles_indices: list[int]
+    subtitles: list[SubTitle]
 
     @classmethod
     def from_subtitles(cls, *subtitles: SubTitle, idx: int) -> "SRTUtterance":
@@ -53,5 +35,5 @@ class SRTUtterance:
             idx=idx,
             content=" ".join([s.content for s in subtitles]),
             timestamp=Timestamps(subtitles[0].timestamp.start, subtitles[-1].timestamp.end),
-            subtitles_indices=[s.idx for s in subtitles],
+            subtitles=subtitles,
         )
