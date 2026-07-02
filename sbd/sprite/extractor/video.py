@@ -73,7 +73,7 @@ class VideoSpriteExtractor(SpriteExtractor):
             Path: Filepath of the resulting HDF5 file.
         """
         output_filepath = Path(output_filepath).with_suffix(".h5")
-        width, height = self._resolve_size(height, width, scale_ratio)
+        height, width = self._resolve_shape(height, width, scale_ratio)
 
         with self.hdf5_datasets(output_filepath, height, width) as (sprites, timestamps):
             sprite_idx = -1
@@ -121,7 +121,7 @@ class VideoSpriteExtractor(SpriteExtractor):
         Yields:
             Iterator[tuple[float, np.ndarray]]: Sampled `(timestamp, frame)` pairs.
         """
-        height, width = self._resolve_size(height, width, scale_ratio)
+        height, width = self._resolve_shape(height, width, scale_ratio)
         method = ExtractionMethod(method)
 
         if method is ExtractionMethod.SELECT:
@@ -189,18 +189,18 @@ class VideoSpriteExtractor(SpriteExtractor):
             except Exception as e:
                 raise VideoSpriteExtractionError("An error occurred during the extraction of the sprite.") from e
 
-    def _resolve_size(self, height: int = None, width: int = None, scale_ratio: float = None) -> tuple[int, int]:
+    def _resolve_shape(self, height: int = None, width: int = None, scale_ratio: float = None) -> tuple[int, int]:
         if scale_ratio and (height or width):
             raise ValueError("Pass either `scale_ratio` or `height`/`width`, not both.")
         if scale_ratio:
-            return int(self.source_width * scale_ratio), int(self.source_height * scale_ratio)
+            return int(self.source_height * scale_ratio), int(self.source_width * scale_ratio)
         if height and not width:
-            return int(self.source_width * height / self.source_height), height
+            return height, int(self.source_width * height / self.source_height)
         if width and not height:
-            return width, int(self.source_height * width / self.source_width)
+            return int(self.source_height * width / self.source_width), width
         if width and height:
-            return width, height
-        return self.source_width, self.source_height
+            return height, width
+        return self.source_height, self.source_width
 
     def _is_source_shape(self, height: int, width: int) -> bool:
         return width == self.source_width and height == self.source_height
