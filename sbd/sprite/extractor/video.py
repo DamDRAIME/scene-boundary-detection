@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Any, Iterator
 
 import numpy as np
-import h5py
 import ffmpeg
 
 from sbd.sprite.exceptions import VideoSpriteExtractionError
+from sbd.sprite.extractor.base import SpriteExtractor
 
 
 class ExtractionMethod(StrEnum):
@@ -15,14 +15,9 @@ class ExtractionMethod(StrEnum):
     SEEK = auto()
 
 
-ExtractionMethod("test")
-
-
-class VideoSpriteExtractor:
+class VideoSpriteExtractor(SpriteExtractor):
     def __init__(self, filepath: str | Path):
-        self.filepath = Path(filepath)
-        if not self.filepath.exists():
-            raise FileNotFoundError(f"Video file not found: {str(self.filepath)}")
+        super().__init__(filepath)
         self.meta = self.get_metadata(self.filepath)
         video_stream = next(s for s in self.meta["streams"] if s["codec_type"] == "video")
         if not video_stream:
@@ -80,20 +75,11 @@ class VideoSpriteExtractor:
         output_filepath = Path(output_filepath).with_suffix(".h5")
         width, height = self._resolve_size(height, width, scale_ratio)
 
-        with h5py.File(output_filepath, "w") as h5_fh:
-            sprites = h5_fh.create_dataset(
-                "sprites",
-                shape=(0, height, width, 3),
-                maxshape=(None, height, width, 3),
-                dtype="uint8",
-                chunks=(1, height, width, 3),  # Chunked by sprite for performance at retrieval
-            )
-            timestamps = h5_fh.create_dataset("timestamps", shape=(0,), maxshape=(None,), dtype="float64")
-
+        with self.hdf5_datasets(output_filepath, height, width) as (sprites, timestamps):
             sprite_idx = -1
-            for sprite_idx, (timestamp, frame) in enumerate(self.iter_frames(fps, height, width, method=method)):
+            for sprite_idx, (timestamp, sprite) in enumerate(self.iter_sprites(fps, height, width, method=method)):
                 sprites.resize(sprite_idx + 1, axis=0)
-                sprites[sprite_idx] = frame
+                sprites[sprite_idx] = sprite
                 timestamps.resize(sprite_idx + 1, axis=0)
                 timestamps[sprite_idx] = timestamp
 
@@ -106,7 +92,7 @@ class VideoSpriteExtractor:
 
         return output_filepath
 
-    def iter_frames(
+    def iter_sprites(
         self,
         fps: float = 1.0,
         height: int = None,
@@ -114,7 +100,7 @@ class VideoSpriteExtractor:
         scale_ratio: float = None,
         method: ExtractionMethod = ExtractionMethod.SELECT,
     ) -> Iterator[tuple[float, np.ndarray]]:
-        """Yield `(timestamp, frame)` pairs sampled from the video at `fps`, using given `method`.
+        """Yield `(timestamp, sprite)` pairs sampled from the video at `fps`, using given `method`.
 
         Args:
             fps (float, optional): Number of frames/sprites to extract every second. Defaults to 1.0.
