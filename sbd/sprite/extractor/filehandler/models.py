@@ -1,4 +1,6 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from datetime import timedelta
+from enum import auto, StrEnum
 from typing import NewType
 
 import numpy as np
@@ -7,6 +9,19 @@ from sbd.shared.models import Timestamps
 
 SpriteSheetImg = NewType("SpriteSheetImg", np.ndarray)
 SpriteImg = NewType("SpriteImg", np.ndarray)
+
+
+class ExtractionMethod(StrEnum):
+    SELECT = auto()
+    SEEK = auto()
+
+
+@dataclass
+class SourceMetadata:
+    fps: float
+    duration: timedelta
+    n_sprites: int
+    sprite_shape: tuple[int, int]  # (H x W)
 
 
 @dataclass
@@ -36,22 +51,3 @@ class SpriteSheet:
     @property
     def n_sprites(self) -> int:
         return self.grid_shape[0] * self.grid_shape[1]
-
-
-@dataclass
-class Sprite:
-    idx: int
-    local_idx: int
-    sprite_sheet: SpriteSheet
-    timestamp: Timestamps = field(init=False)
-
-    def __post_init__(self):
-        n_sprites = self.sprite_sheet.n_sprites
-        duration = self.sprite_sheet.timestamp.duration / n_sprites
-        start = self.sprite_sheet.timestamp.start + (duration * self.local_idx)
-        end = self.sprite_sheet.timestamp.end if self.local_idx == n_sprites - 1 else start + duration
-        self.timestamp = Timestamps(start, end)
-
-    @property
-    def filename(self) -> str:
-        return f"sprite_sheet_{self.sprite_sheet.idx}_sprite_{self.local_idx}_{self.idx}.{self.sprite_sheet.type.split('/')[-1]}"

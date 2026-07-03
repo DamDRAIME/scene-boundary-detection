@@ -4,32 +4,74 @@ from pathlib import Path
 from typing import Iterator
 
 import h5py
-import numpy as np
+
+from sbd.sprite.extractor.filehandler.models import SpriteImg
+from sbd.sprite.extractor.filehandler.base import FileHandler
 
 
 class SpriteExtractor(ABC):
-    def __init__(self, filepath: str | Path):
-        self.filepath = Path(filepath)
-        if not self.filepath.exists():
-            raise FileNotFoundError(f"Input file not found: {str(self.filepath)}")
+    def __init__(self, filehandler: FileHandler):
+        self.filehandler = filehandler
 
+    def extract(
+        self,
+        output_filepath: str | Path,
+        dataset_attributes: list[str] = ["width", "height", "fps", "mode", "method"],
+        **iter_sprites_kwargs,
+    ) -> Path:
+        output_filepath = Path(output_filepath).with_suffix(".h5")
+
+        with self.hdf5_datasets(output_filepath) as (sprites, timestamps):
+            sprite_idx = -1
+            for sprite_idx, (timestamp, sprite) in enumerate(self.iter_sprites(**iter_sprites_kwargs)):
+                sprites.resize(sprite_idx + 1, axis=0)
+                sprites[sprite_idx] = sprite
+                timestamps.resize(sprite_idx + 1, axis=0)
+                timestamps[sprite_idx] = timestamp
+
+            sprites.attrs["source"] = str(self.filehandler.filepath)
+            sprites.attrs["n_sprites"] = sprite_idx + 1
+            for attr_name in dataset_attributes:
+                sprites.attrs[attr_name] = getattr(self, attr_name, "N/A")
+            timestamps.attrs["unit"] = "seconds"
+
+    @property
     @abstractmethod
-    def extract(self, output_filepath: str | Path, *args, **kwargs) -> Path:
+    def height(self) -> int:
         pass
 
+    @property
     @abstractmethod
-    def iter_sprites(self, *args, **kwargs) -> Iterator[tuple[float, np.ndarray]]:
+    def width(self) -> int:
         pass
+
+    @property
+    @abstractmethod
+    def fps(self) -> float:
+        pass
+
+    @property
+    @abstractmethod
+    def mode(self) -> str:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_file(cls, filepath: str | Path) -> "SpriteExtractor":
+        pass
+
+    def iter_sprites(self, *args, **kwargs) -> Iterator[tuple[float, SpriteImg]]:
+        yield from self.filehandler.iter_sprites(*args, **kwargs)
 
     @contextmanager
-    def hdf5_datasets(self, output_filepath: str | Path, height: int, width: int):
+    def hdf5_datasets(self, output_filepath: str | Path):
         h5_fh = h5py.File(output_filepath, "w")
         sprites = h5_fh.create_dataset(
             "sprites",
-            shape=(0, height, width, 3),
-            maxshape=(None, height, width, 3),
+            shape=(0, self.height, self.width, 3),
+            maxshape=(None, self.height, self.width, 3),
             dtype="uint8",
-            chunks=(1, height, width, 3),  # Chunked by sprite for performance at retrieval
+            chunks=(1, self.height, self.width, 3),  # Chunked by sprite for performance at retrieval
         )
         timestamps = h5_fh.create_dataset("timestamps", shape=(0,), maxshape=(None,), dtype="float64")
         try:
