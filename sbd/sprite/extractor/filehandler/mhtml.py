@@ -7,7 +7,7 @@ import urllib.request
 import numpy as np
 import cv2
 
-from sbd.sprite.exceptions import MHTMLParsingError
+from sbd.sprite.extractor.exceptions import MHTMLParsingError, SpriteExtractionError
 from sbd.sprite.extractor.base import FileHandler
 from sbd.sprite.extractor.filehandler.models import (
     SourceMetadata,
@@ -60,13 +60,16 @@ class MHTMLFileHandler(FileHandler):
     def _iter_sprites_from_sprite_sheet(
         self, sprite_sheet: SpriteSheet, grid_shape: tuple[int, int]
     ) -> Iterator[tuple[float, SpriteImg]]:
-        timestamp = sprite_sheet.timestamp.start
-        ss_img = self._download_sprite_sheet(sprite_sheet)
-        sprites_grid = split_from_grid(ss_img, grid_shape)
-        sprites = [sprite for row in sprites_grid for sprite in row]
-        for sprite in sprites:
-            yield timestamp.total_seconds(), sprite
-            timestamp += timedelta(seconds=1 / self.src_meta.fps)
+        try:
+            timestamp = sprite_sheet.timestamp.start
+            ss_img = self._download_sprite_sheet(sprite_sheet)
+            sprites_grid = split_from_grid(ss_img, grid_shape)
+            sprites = [sprite for row in sprites_grid for sprite in row]
+            for sprite in sprites:
+                yield timestamp.total_seconds(), sprite
+                timestamp += timedelta(seconds=1 / self.src_meta.fps)
+        except Exception as e:
+            raise SpriteExtractionError("An error occurred while extracting a sprite from a sprite sheet.") from e
 
     def get_source_metadata(self) -> SourceMetadata:
         sprite_sheet_shape = self._download_sprite_sheet(self.sprite_sheets[0]).shape[:2]
@@ -134,11 +137,14 @@ class MHTMLFileHandler(FileHandler):
             raise MHTMLParsingError(
                 f"Could not download Sprite Sheet ({sprite_sheet.cid}) as its location wasn't found."
             )
-        req = urllib.request.urlopen(sprite_sheet.location)
-        arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
-        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        return img
+        try:
+            req = urllib.request.urlopen(sprite_sheet.location)
+            arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
+            img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            return img
+        except Exception as e:
+            raise SpriteExtractionError("An error occurred while downloading or converting the sprite sheet.") from e
 
     def _extract_sprite_sheets_metadata(self, body: str) -> dict[str, SpriteSheet]:
         if not body.startswith("<!DOCTYPE html>"):

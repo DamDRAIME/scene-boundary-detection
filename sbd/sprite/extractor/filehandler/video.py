@@ -5,7 +5,7 @@ from typing import Any, Iterator
 import numpy as np
 import ffmpeg
 
-from sbd.sprite.exceptions import VideoSpriteExtractionError
+from sbd.sprite.extractor.exceptions import SpriteExtractionError, VideoParsingError
 from sbd.sprite.extractor.base import FileHandler
 from sbd.sprite.extractor.filehandler.models import ExtractionMethod, SourceMetadata, SpriteImg
 from sbd.sprite.extractor.filehandler.utils import resolve_shape
@@ -53,7 +53,7 @@ class VideoFileHandler(FileHandler):
         meta = self.get_source_raw_metadata(self.filepath)
         video_stream = next(s for s in meta["streams"] if s["codec_type"] == "video")
         if not video_stream:
-            raise VideoSpriteExtractionError("Could not find a stream with a `video` codec type.")
+            raise VideoParsingError("Could not find a stream with a `video` codec type.")
         return SourceMetadata(
             fps=float(Fraction(video_stream["r_frame_rate"])),
             duration=float(video_stream.get("duration") or meta["format"]["duration"]),
@@ -63,7 +63,10 @@ class VideoFileHandler(FileHandler):
 
     @staticmethod
     def get_source_raw_metadata(filepath: str | Path) -> dict[str, Any]:
-        return ffmpeg.probe(filepath)
+        try:
+            return ffmpeg.probe(filepath)
+        except Exception as e:
+            raise VideoParsingError("Invalid file type") from e
 
     def _iter_frames_select(self, fps: float, width: int, height: int) -> Iterator[tuple[float, np.ndarray]]:
         frame_size = width * height * 3
@@ -90,14 +93,14 @@ class VideoFileHandler(FileHandler):
                 yield timestamp, frame
                 frame_idx += 1
         except Exception as e:
-            raise VideoSpriteExtractionError("An error occurred during the extraction of the sprite.") from e
+            raise SpriteExtractionError("An error occurred during the extraction of the sprite.") from e
         finally:
             process.stdout.close()
             stderr = process.stderr.read()
             process.stderr.close()
             returncode = process.wait()
             if returncode != 0:
-                raise VideoSpriteExtractionError(
+                raise SpriteExtractionError(
                     "An error occurred during the extraction of the sprite: "
                     f"ffmpeg exited with code {returncode}: {stderr.decode(errors='replace')}"
                 )
@@ -120,7 +123,7 @@ class VideoFileHandler(FileHandler):
                 frame = np.frombuffer(out, np.uint8).reshape((height, width, 3))
                 yield timestamp, frame
             except Exception as e:
-                raise VideoSpriteExtractionError("An error occurred during the extraction of the sprite.") from e
+                raise SpriteExtractionError("An error occurred during the extraction of the sprite.") from e
 
     def _resolve_shape(self, height: int = None, width: int = None, scale_ratio: float = None) -> tuple[int, int]:
         if scale_ratio and (height or width):

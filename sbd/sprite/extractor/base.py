@@ -5,6 +5,7 @@ from typing import Iterator
 
 import h5py
 
+from sbd.sprite.extractor.exceptions import SpriteExtractionError
 from sbd.sprite.extractor.filehandler.models import SpriteImg
 from sbd.sprite.extractor.filehandler.base import FileHandler
 
@@ -76,5 +77,7 @@ class SpriteExtractor(ABC):
         timestamps = h5_fh.create_dataset("timestamps", shape=(0,), maxshape=(None,), dtype="float64")
         try:
             yield sprites, timestamps
+        except Exception as e:
+            raise SpriteExtractionError("An error occurred at the creation of the HDF5 dataset.") from e
         finally:
             h5_fh.close()
