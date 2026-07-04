@@ -6,12 +6,12 @@ from typing import Iterator
 import h5py
 
 from sbd.sprite.extractor.exceptions import SpriteExtractionError
+from sbd.sprite.extractor.filehandler.base import SpriteFileHandler
 from sbd.sprite.extractor.filehandler.models import SpriteImg
-from sbd.sprite.extractor.filehandler.base import FileHandler
 
 
 class SpriteExtractor(ABC):
-    def __init__(self, filehandler: FileHandler):
+    def __init__(self, filehandler: SpriteFileHandler):
         self.filehandler = filehandler
 
     def extract(

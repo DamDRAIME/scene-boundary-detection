@@ -2,16 +2,16 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any, Iterator
 
-import numpy as np
 import ffmpeg
+import numpy as np
 
+from sbd.sprite.extractor.base import SpriteFileHandler
 from sbd.sprite.extractor.exceptions import SpriteExtractionError, VideoParsingError
-from sbd.sprite.extractor.base import FileHandler
 from sbd.sprite.extractor.filehandler.models import ExtractionMethod, SourceMetadata, SpriteImg
 from sbd.sprite.extractor.filehandler.utils import resolve_shape
 
 
-class VideoFileHandler(FileHandler):
+class VideoFileHandler(SpriteFileHandler):
     def __init__(self, filepath: str | Path):
         super().__init__(filepath)
         self._src_meta = self.get_source_metadata()

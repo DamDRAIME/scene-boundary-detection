@@ -5,7 +5,7 @@ from typing import Iterator
 from sbd.sprite.extractor.filehandler.models import SourceMetadata, SpriteImg
 
 
-class FileHandler(ABC):
+class SpriteFileHandler(ABC):
     def __init__(self, filepath: str | Path):
         self.filepath = Path(filepath)
         if not self.filepath.exists():

@@ -1,14 +1,17 @@
+import re
+import urllib.request
 from datetime import timedelta
 from pathlib import Path
 from typing import Iterator
-import re
-import urllib.request
 
-import numpy as np
 import cv2
+import numpy as np
 
+from sbd.shared.models import Timestamps
+from sbd.shared.utils.detect_encoding import detect_encoding
+from sbd.shared.utils.timedelta import timedelta_parse
+from sbd.sprite.extractor.base import SpriteFileHandler
 from sbd.sprite.extractor.exceptions import MHTMLParsingError, SpriteExtractionError
-from sbd.sprite.extractor.base import FileHandler
 from sbd.sprite.extractor.filehandler.models import (
     SourceMetadata,
     SpriteImg,
@@ -19,17 +22,14 @@ from sbd.sprite.extractor.filehandler.models import (
 from sbd.sprite.extractor.filehandler.utils import (
     get_header_value,
     read_boundary,
-    split_from_grid,
-    strip_segment,
     split_boundary_segments,
+    split_from_grid,
     split_segment,
+    strip_segment,
 )
-from sbd.shared.models import Timestamps
-from sbd.shared.utils.detect_encoding import detect_encoding
-from sbd.shared.utils.timedelta import timedelta_parse
 
 
-class MHTMLFileHandler(FileHandler):
+class MHTMLFileHandler(SpriteFileHandler):
     spritesheet_metadata_pattern = re.compile(
         r"<figcaption>Slide\s+#(?P<idx>\d+):"  # Sprite index
         r"\s+(?P<start>\d{2}:\d{2}:\d{2},\d{3})\s+"  # Timestamp start

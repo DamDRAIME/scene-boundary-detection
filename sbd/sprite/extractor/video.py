@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from sbd.sprite.extractor.base import SpriteExtractor
-from sbd.sprite.extractor.filehandler.video import VideoFileHandler
 from sbd.sprite.extractor.filehandler.models import ExtractionMethod
+from sbd.sprite.extractor.filehandler.video import VideoFileHandler
 
 
 class VideoSpriteExtractor(SpriteExtractor):
