@@ -58,7 +58,7 @@ class SpriteExtractor(ABC):
 
     @classmethod
     @abstractmethod
-    def from_file(cls, filepath: str | Path) -> "SpriteExtractor":
+    def from_file(cls, filepath: str | Path, **kwargs) -> "SpriteExtractor":
         pass
 
     def iter_sprites(self, *args, **kwargs) -> Iterator[tuple[float, SpriteImg]]:

@@ -25,5 +25,5 @@ class MHTMLSpriteExtractor(SpriteExtractor):
         return "RGB"
 
     @classmethod
-    def from_file(cls, filepath: str | Path) -> "MHTMLSpriteExtractor":
-        return cls(MHTMLFileHandler(filepath))
+    def from_file(cls, filepath: str | Path, **kwargs) -> "MHTMLSpriteExtractor":
+        return cls(MHTMLFileHandler(filepath, **kwargs))

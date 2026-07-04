@@ -77,5 +77,5 @@ class VideoSpriteExtractor(SpriteExtractor):
         return super().extract(output_filepath, **iter_sprites_kwargs)
 
     @classmethod
-    def from_file(cls, filepath: str | Path) -> "VideoSpriteExtractor":
-        return cls(VideoFileHandler(filepath))
+    def from_file(cls, filepath: str | Path, **kwargs) -> "VideoSpriteExtractor":
+        return cls(VideoFileHandler(filepath, **kwargs))
