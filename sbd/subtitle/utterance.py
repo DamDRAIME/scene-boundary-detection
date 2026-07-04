@@ -1,8 +1,8 @@
-from copy import deepcopy
 import warnings
+from copy import deepcopy
 
-from sbd.subtitle.models import SubTitle, SRTUtterance
 from sbd.shared.utils.counter import Counter
+from sbd.subtitle.extractor.filehandler.models import SRTUtterance, SubTitle
 
 
 def subtitles_to_utterances(

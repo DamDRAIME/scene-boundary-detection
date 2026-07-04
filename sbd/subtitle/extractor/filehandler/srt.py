@@ -1,15 +1,16 @@
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 
-from sbd.subtitle import utils
-from sbd.subtitle.exceptions import SRTParsingError
-from sbd.subtitle.models import Timestamps, Coordinates, SubTitle
 from sbd.shared.utils.detect_encoding import detect_encoding
 from sbd.shared.utils.timedelta import timedelta_parse
+from sbd.subtitle.extractor.exceptions import SRTParsingError
+from sbd.subtitle.extractor.filehandler import utils
+from sbd.subtitle.extractor.filehandler.base import SubtitleFileHandler
+from sbd.subtitle.extractor.filehandler.models import Coordinates, SubTitle, Timestamps
 
 
-class SubtitleParser:
+class SRTFileHandler(SubtitleFileHandler):
     timestamp_line_pattern = re.compile(
         r"^(?P<start>[\d:,.]+)"  # Start timestamp
         r"\s*-->\s*"  # Timestamps separator
@@ -18,15 +19,13 @@ class SubtitleParser:
     )
 
     def __init__(self, filepath: Path | str, remove_html_tags: bool = True):
-        self.filepath = Path(filepath)
+        super().__init__(filepath)
         self.remove_html_tags = remove_html_tags
         self.encoding = detect_encoding(self.filepath)
         self.line_idx: int = 0
         self._next_line: str | None = None
-        self.subtitles: list[SubTitle] = []
 
-    def parse(self):
-        self.subtitles = []  # Reset for the method to be idempotent
+    def iter_subtitles(self) -> Iterator[SubTitle]:
         with self.filepath.open("r", encoding=self.encoding) as fh:
             idx: int | None = None
             timestamps: Optional[Timestamps] = None
@@ -37,7 +36,7 @@ class SubtitleParser:
                 line = line.strip()
                 if not line:
                     if content and idx is not None and timestamps is not None:
-                        self._flush(idx, subtitle_header_line_idx, timestamps, content, coordinates)
+                        yield self._build_subtitle(idx, subtitle_header_line_idx, timestamps, content, coordinates)
                         idx, timestamps, content = None, None, []
                     continue
 
@@ -49,13 +48,7 @@ class SubtitleParser:
                 else:
                     content.append(self._parse_content_line(line))
             if content and idx is not None and timestamps is not None:
-                self._flush(idx, subtitle_header_line_idx, timestamps, content, coordinates)
-
-    @classmethod
-    def read(cls, filepath: Path | str, remove_html_tags: bool = True) -> "SubtitleParser":
-        _self = cls(filepath, remove_html_tags)
-        _self.parse()
-        return _self
+                yield self._build_subtitle(idx, subtitle_header_line_idx, timestamps, content, coordinates)
 
     def _parse_idx_line(self, line: str) -> int:
         try:
@@ -95,21 +88,19 @@ class SubtitleParser:
     def _parse_content_line(self, line: str) -> str:
         return line if not self.remove_html_tags else utils.remove_html_tags(line)
 
-    def _flush(
+    def _build_subtitle(
         self,
         idx: int,
         subtitle_header_line_idx: int,
         timestamps: Timestamps,
         content: list[str],
         coordinates: Optional[Coordinates] = None,
-    ) -> None:
-        self.subtitles.append(
-            SubTitle(
-                idx=idx,
-                filepath=self.filepath,
-                line_idx=subtitle_header_line_idx,
-                timestamp=timestamps,
-                content=" ".join(content),
-                coordinates=coordinates,
-            )
+    ) -> SubTitle:
+        return SubTitle(
+            idx=idx,
+            filepath=self.filepath,
+            line_idx=subtitle_header_line_idx,
+            timestamp=timestamps,
+            content=" ".join(content),
+            coordinates=coordinates,
         )
