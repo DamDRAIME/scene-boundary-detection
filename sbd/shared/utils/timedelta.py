@@ -14,3 +14,10 @@ def timedelta_parse(time_string: str) -> timedelta:
         except ValueError:
             continue
     raise ValueError()
+
+
+def convert_to_seconds(timestamp: float | timedelta) -> float:
+    """Convert a timestamp to seconds."""
+    if isinstance(timestamp, timedelta):
+        return timestamp.total_seconds()
+    return timestamp
