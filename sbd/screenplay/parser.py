@@ -20,9 +20,10 @@ U  Utterance      spoken dialogue
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
-import re
+from typing import Self
 
 from sbd.screenplay.exceptions import SCREENPLAYParsingError
 from sbd.screenplay.models import (
@@ -457,7 +458,7 @@ class ScreenplayParser:
             flush_scene()
 
     @classmethod
-    def read(cls, filepath: Path | str) -> "ScreenplayParser":
+    def read(cls, filepath: Path | str) -> Self:
         _self = cls(filepath)
         _self.parse()
         return _self

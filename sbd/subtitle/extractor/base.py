@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Self
 
 import h5py
 
@@ -31,7 +31,7 @@ class SubtitleExtractor(ABC):
 
     @classmethod
     @abstractmethod
-    def from_file(cls, filepath: str | Path, **kwargs) -> "SubtitleExtractor":
+    def from_file(cls, filepath: str | Path, **kwargs) -> Self:
         pass
 
     def iter_subtitles(self, *args, **kwargs) -> Iterator[SubTitle]:

@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Self
 
 from sbd.sprite.extractor.base import SpriteExtractor
 from sbd.sprite.extractor.filehandler.mhtml import MHTMLFileHandler
@@ -25,5 +26,5 @@ class MHTMLSpriteExtractor(SpriteExtractor):
         return "RGB"
 
     @classmethod
-    def from_file(cls, filepath: str | Path, **kwargs) -> "MHTMLSpriteExtractor":
+    def from_file(cls, filepath: str | Path, **kwargs) -> Self:
         return cls(MHTMLFileHandler(filepath, **kwargs))

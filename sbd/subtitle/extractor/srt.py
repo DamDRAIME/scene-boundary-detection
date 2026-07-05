@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Self
 
 from sbd.subtitle.extractor.base import SubtitleExtractor
 from sbd.subtitle.extractor.filehandler.srt import SRTFileHandler
@@ -9,5 +10,5 @@ class SRTSubtitleExtractor(SubtitleExtractor):
         super().__init__(filehandler)
 
     @classmethod
-    def from_file(cls, filepath: str | Path, **kwargs) -> "SRTSubtitleExtractor":
+    def from_file(cls, filepath: str | Path, **kwargs) -> Self:
         return cls(SRTFileHandler(filepath, **kwargs))

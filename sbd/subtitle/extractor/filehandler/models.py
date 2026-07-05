@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Self
 
 from sbd.shared.models import Timestamps
 
@@ -30,7 +30,7 @@ class SRTUtterance:
     subtitles: list[SubTitle]
 
     @classmethod
-    def from_subtitles(cls, *subtitles: SubTitle, idx: int) -> "SRTUtterance":
+    def from_subtitles(cls, *subtitles: SubTitle, idx: int) -> Self:
         return cls(
             idx=idx,
             content=" ".join([s.content for s in subtitles]),

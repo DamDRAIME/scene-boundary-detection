@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Self
 
 from sbd.sprite.extractor.base import SpriteExtractor
 from sbd.sprite.extractor.filehandler.models import ExtractionMethod
@@ -77,5 +78,5 @@ class VideoSpriteExtractor(SpriteExtractor):
         return super().extract(output_filepath, **iter_sprites_kwargs)
 
     @classmethod
-    def from_file(cls, filepath: str | Path, **kwargs) -> "VideoSpriteExtractor":
+    def from_file(cls, filepath: str | Path, **kwargs) -> Self:
         return cls(VideoFileHandler(filepath, **kwargs))
