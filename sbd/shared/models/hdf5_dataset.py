@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Generic, TypeVar
 
 import h5py
+import numpy as np
 
 from sbd.shared.utils.timedelta import convert_to_seconds
 
@@ -133,3 +134,7 @@ class HDF5TimestampedStrDataset(HDF5TimestampedDataset[str]):
             if self._dataset_name not in h5_fh:
                 raise KeyError(f"'{self._dataset_name}' dataset not found in HDF5 file: {str(self.filepath)}")
             return h5_fh[self._dataset_name].asstr()[key]
+
+
+class HDF5TimestampedImgDataset(HDF5TimestampedDataset[np.ndarray]):
+    pass
