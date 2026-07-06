@@ -4,7 +4,7 @@ from typing import Iterator, Optional
 
 from sbd.shared.utils.detect_encoding import detect_encoding
 from sbd.shared.utils.timedelta import timedelta_parse
-from sbd.subtitle.exceptions import SRTParsingError
+from sbd.subtitle.extractor.exceptions import SRTParsingError
 from sbd.subtitle.extractor.filehandler import utils
 from sbd.subtitle.extractor.filehandler.base import SubtitleFileHandler
 from sbd.subtitle.extractor.filehandler.models import Coordinates, SubTitle, Timestamps

@@ -5,7 +5,7 @@ from typing import Iterator, Self
 
 import h5py
 
-from sbd.subtitle.exceptions import SubtitleExtractionError
+from sbd.subtitle.extractor.exceptions import SubtitleExtractionError
 from sbd.subtitle.extractor.filehandler.base import SubtitleFileHandler
 from sbd.subtitle.extractor.filehandler.models import SubTitle
 
