@@ -11,13 +11,14 @@ from sbd.subtitle.extractor.filehandler.models import SubTitle
 
 
 class SubtitleExtractor(ABC):
-    def __init__(self, filehandler: SubtitleFileHandler):
+    def __init__(self, filehandler: SubtitleFileHandler, data_type: str = "subtitle"):
         self.filehandler = filehandler
+        self.data_type = data_type
 
     def extract(self, output_filepath: str | Path, **iter_subtitles_kwargs) -> Path:
         output_filepath = Path(output_filepath).with_suffix(".h5")
 
-        with self.hdf5_datasets(output_filepath) as (subtitles, timestamps):
+        with self.hdf5_datasets(output_filepath) as (data, timestamps):
             subtitle_idx = -1
             for subtitle_idx, subtitle in enumerate(self.iter_subtitles(**iter_subtitles_kwargs)):
                 data.resize(subtitle_idx + 1, axis=0)
@@ -25,8 +26,9 @@ class SubtitleExtractor(ABC):
                 timestamps.resize(subtitle_idx + 1, axis=0)
                 timestamps[subtitle_idx] = subtitle.timestamp.start.total_seconds()
 
-            subtitles.attrs["source"] = str(self.filehandler.filepath)
-            subtitles.attrs["n_subtitles"] = subtitle_idx + 1
+            data.attrs["type"] = self.data_type
+            data.attrs["source"] = str(self.filehandler.filepath)
+            data.attrs["n_entries"] = subtitle_idx + 1
             timestamps.attrs["unit"] = "seconds"
 
     @classmethod

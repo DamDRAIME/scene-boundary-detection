@@ -2,15 +2,15 @@ import warnings
 from copy import deepcopy
 
 from sbd.shared.utils.counter import Counter
-from sbd.subtitle.extractor.filehandler.models import SRTUtterance, SubTitle
+from sbd.subtitle.extractor.filehandler.models import SubTitle, Utterance
 
 
 def subtitles_to_utterances(
     subtitles: list[SubTitle], end_sentence_markers: tuple[str] = (".", "!", "?", "-")
-) -> list[SRTUtterance]:
+) -> list[Utterance]:
     def flush_buffer():
         nonlocal buffer, utterances, id_generator
-        utterances.append(SRTUtterance.from_subtitles(*buffer, idx=id_generator.next()))
+        utterances.append(Utterance.from_subtitles(*buffer, idx=id_generator.next()))
         buffer = []
 
     def break_two_people_dialogue(subtitle: SubTitle):
@@ -23,11 +23,11 @@ def subtitles_to_utterances(
                 f"at {subtitle.filepath}:{subtitle.line_idx}\n"
                 f"Found {len(parts)}. It will be treated as one utterance."
             )
-            utterances.append(SRTUtterance.from_subtitles(subtitle, idx=id_generator.next()))
+            utterances.append(Utterance.from_subtitles(subtitle, idx=id_generator.next()))
             return
         first_u, second_u = parts
         utterances.append(
-            SRTUtterance(
+            Utterance(
                 idx=id_generator.next(),
                 timestamp=subtitle.timestamp.first_half(),
                 content=first_u,
@@ -36,7 +36,7 @@ def subtitles_to_utterances(
         )
         if second_u.endswith(end_sentence_markers):
             utterances.append(
-                SRTUtterance(
+                Utterance(
                     idx=id_generator.next(),
                     timestamp=subtitle.timestamp.second_half(),
                     content=second_u,
@@ -50,7 +50,7 @@ def subtitles_to_utterances(
             buffer.append(subt)
 
     id_generator = Counter()
-    utterances: list[SRTUtterance] = []
+    utterances: list[Utterance] = []
     buffer: list[SubTitle] = []
     for subtitle in subtitles:
         if subtitle.content.startswith("- "):

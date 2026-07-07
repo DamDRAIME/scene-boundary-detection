@@ -23,7 +23,7 @@ class SubTitle:
 
 
 @dataclass
-class SRTUtterance:
+class Utterance:
     idx: int
     timestamp: Timestamps
     content: str
