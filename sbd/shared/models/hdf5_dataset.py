@@ -14,9 +14,8 @@ T = TypeVar("T")
 
 
 class HDF5TimestampedDataset(Generic[T]):
-    def __init__(self, filepath: str | Path, dataset_name: str):
+    def __init__(self, filepath: str | Path):
         self.filepath = Path(filepath)
-        self._dataset_name = dataset_name
         if not self.filepath.exists():
             raise FileNotFoundError(f"HDF5 file not found: {str(self.filepath)}")
         if self.filepath.suffix != ".h5":
@@ -25,7 +24,7 @@ class HDF5TimestampedDataset(Generic[T]):
         self._timestamps = self._load_timestamps()
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(filepath={self.filepath.name}, metadata={self.metadata[self._dataset_name]})"
+        return f"{self.__class__.__name__}(filepath={self.filepath.name}, metadata={self.metadata['data']})"
 
     def __len__(self):
         return len(self._timestamps)
@@ -93,13 +92,11 @@ class HDF5TimestampedDataset(Generic[T]):
         metadata = defaultdict(dict)
         with self.open() as h5_fh:
             root_datasets = [
-                key
-                for key in h5_fh.keys()
-                if isinstance(h5_fh[key], h5py.Dataset) and key in [self._dataset_name, "timestamps"]
+                key for key in h5_fh.keys() if isinstance(h5_fh[key], h5py.Dataset) and key in ["data", "timestamps"]
             ]
-            if not all(dataset_name in root_datasets for dataset_name in [self._dataset_name, "timestamps"]):
+            if not all(dataset_name in root_datasets for dataset_name in ["data", "timestamps"]):
                 raise KeyError(
-                    f"Required datasets '{self._dataset_name}' and 'timestamps' not found in HDF5 file: {str(self.filepath)}"
+                    f"Required datasets 'data' and 'timestamps' not found in HDF5 file: {str(self.filepath)}"
                 )
             for dataset_name in root_datasets:
                 dataset = h5_fh[dataset_name]
@@ -115,9 +112,9 @@ class HDF5TimestampedDataset(Generic[T]):
 
     def _get(self, key: int | slice) -> T | list[T]:
         with self.open() as h5_fh:
-            if self._dataset_name not in h5_fh:
-                raise KeyError(f"'{self._dataset_name}' dataset not found in HDF5 file: {str(self.filepath)}")
-            return h5_fh[self._dataset_name][key]
+            if "data" not in h5_fh:
+                raise KeyError(f"'data' dataset not found in HDF5 file: {str(self.filepath)}")
+            return h5_fh["data"][key]
 
     @contextmanager
     def open(self) -> h5py.File:
@@ -131,9 +128,9 @@ class HDF5TimestampedDataset(Generic[T]):
 class HDF5TimestampedStrDataset(HDF5TimestampedDataset[str]):
     def _get(self, key: int | slice) -> T | list[T]:
         with self.open() as h5_fh:
-            if self._dataset_name not in h5_fh:
-                raise KeyError(f"'{self._dataset_name}' dataset not found in HDF5 file: {str(self.filepath)}")
-            return h5_fh[self._dataset_name].asstr()[key]
+            if "data" not in h5_fh:
+                raise KeyError(f"'data' dataset not found in HDF5 file: {str(self.filepath)}")
+            return h5_fh["data"].asstr()[key]
 
 
 class HDF5TimestampedImgDataset(HDF5TimestampedDataset[np.ndarray]):

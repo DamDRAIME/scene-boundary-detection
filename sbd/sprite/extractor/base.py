@@ -22,18 +22,19 @@ class SpriteExtractor(ABC):
     ) -> Path:
         output_filepath = Path(output_filepath).with_suffix(".h5")
 
-        with self.hdf5_datasets(output_filepath) as (sprites, timestamps):
+        with self.hdf5_datasets(output_filepath) as (data, timestamps):
             sprite_idx = -1
             for sprite_idx, (timestamp, sprite) in enumerate(self.iter_sprites(**iter_sprites_kwargs)):
-                sprites.resize(sprite_idx + 1, axis=0)
-                sprites[sprite_idx] = sprite
+                data.resize(sprite_idx + 1, axis=0)
+                data[sprite_idx] = sprite
                 timestamps.resize(sprite_idx + 1, axis=0)
                 timestamps[sprite_idx] = timestamp
 
-            sprites.attrs["source"] = str(self.filehandler.filepath)
-            sprites.attrs["n_sprites"] = sprite_idx + 1
+            data.attrs["type"] = "sprite"
+            data.attrs["source"] = str(self.filehandler.filepath)
+            data.attrs["n_entries"] = sprite_idx + 1
             for attr_name in dataset_attributes:
-                sprites.attrs[attr_name] = getattr(self, attr_name, "N/A")
+                data.attrs[attr_name] = getattr(self, attr_name, "N/A")
             timestamps.attrs["unit"] = "seconds"
 
     @property
@@ -67,8 +68,8 @@ class SpriteExtractor(ABC):
     @contextmanager
     def hdf5_datasets(self, output_filepath: str | Path):
         h5_fh = h5py.File(output_filepath, "w")
-        sprites = h5_fh.create_dataset(
-            "sprites",
+        data = h5_fh.create_dataset(
+            "data",
             shape=(0, self.height, self.width, 3),
             maxshape=(None, self.height, self.width, 3),
             dtype="uint8",
@@ -76,7 +77,7 @@ class SpriteExtractor(ABC):
         )
         timestamps = h5_fh.create_dataset("timestamps", shape=(0,), maxshape=(None,), dtype="float64")
         try:
-            yield sprites, timestamps
+            yield data, timestamps
         except Exception as e:
             raise SpriteExtractionError("An error occurred at the creation of the HDF5 dataset.") from e
         finally:
