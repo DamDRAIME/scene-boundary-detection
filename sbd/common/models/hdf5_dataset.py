@@ -8,7 +8,7 @@ from typing import Generic, TypeVar
 import h5py
 import numpy as np
 
-from sbd.shared.utils.timedelta import convert_to_seconds
+from sbd.common.utils.timedelta import convert_to_seconds
 
 T = TypeVar("T")
 

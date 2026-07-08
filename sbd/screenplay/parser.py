@@ -25,6 +25,8 @@ import sys
 from pathlib import Path
 from typing import Self
 
+from sbd.common.utils import detect_encoding
+from sbd.common.utils.counter import Counter
 from sbd.screenplay.exceptions import SCREENPLAYParsingError
 from sbd.screenplay.models import (
     Deletion,
@@ -39,8 +41,6 @@ from sbd.screenplay.models import (
 )
 from sbd.screenplay.typings import Label, PreludeContent, SceneContent
 from sbd.screenplay.utils import extract_primary_label, sanitize_labels
-from sbd.shared.utils import detect_encoding
-from sbd.shared.utils.counter import Counter
 
 LABELS_TO_IGNORE = frozenset({Label.I, Label.G})
 LABELS_PRIORITY = [Label.S, Label.C, Label.U, Label.P, Label.E, Label.N, Label.T, Label.M, Label.D, Label.O]

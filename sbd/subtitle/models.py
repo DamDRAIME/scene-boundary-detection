@@ -3,7 +3,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import NamedTuple, Optional, Self
 
-from sbd.shared.models import Timestamps
+from sbd.common.models import Timestamps
 
 
 class Coordinates(NamedTuple):

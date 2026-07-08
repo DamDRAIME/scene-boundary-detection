@@ -1,7 +1,7 @@
 import warnings
 from copy import deepcopy
 
-from sbd.shared.utils.counter import Counter
+from sbd.common.utils.counter import Counter
 from sbd.subtitle.models import SubTitle, Utterance
 
 

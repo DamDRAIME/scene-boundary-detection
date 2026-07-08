@@ -3,7 +3,7 @@ from typing import Self
 
 import polars as pl
 
-from sbd.shared.models.parquet_dataset import ParquetTimestampedDataset, write_parquet
+from sbd.common.models.parquet_dataset import ParquetTimestampedDataset, write_parquet
 from sbd.subtitle.models import SubTitle, Utterance
 from sbd.subtitle.utterance import subtitles_to_utterances
 

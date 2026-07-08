@@ -6,7 +6,7 @@ from typing import Generic, TypeVar
 
 import polars as pl
 
-from sbd.shared.utils.timedelta import convert_to_seconds
+from sbd.common.utils.timedelta import convert_to_seconds
 
 T = TypeVar("T")
 

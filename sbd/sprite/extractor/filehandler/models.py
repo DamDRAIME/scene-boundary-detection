@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from datetime import timedelta
-from enum import auto, StrEnum
+from enum import StrEnum, auto
 from typing import NewType
 
 import numpy as np
 
-from sbd.shared.models import Timestamps
+from sbd.common.models import Timestamps
 
 SpriteSheetImg = NewType("SpriteSheetImg", np.ndarray)
 SpriteImg = NewType("SpriteImg", np.ndarray)

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from sbd.shared.models.hdf5_dataset import HDF5TimestampedImgDataset
+from sbd.common.models.hdf5_dataset import HDF5TimestampedImgDataset
 
 
 class SpriteDataset(HDF5TimestampedImgDataset):
