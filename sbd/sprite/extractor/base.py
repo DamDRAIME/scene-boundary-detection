@@ -5,7 +5,7 @@ from typing import Iterator
 
 import h5py
 
-from sbd.sprite.extractor.exceptions import SpriteExtractionError
+from sbd.exceptions import SpriteExtractionError
 from sbd.sprite.extractor.filehandler.base import SpriteFileHandler
 from sbd.sprite.extractor.filehandler.models import SpriteImg
 

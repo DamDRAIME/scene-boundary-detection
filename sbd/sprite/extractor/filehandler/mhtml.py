@@ -10,8 +10,8 @@ import numpy as np
 from sbd.common.models import Timestamps
 from sbd.common.utils.detect_encoding import detect_encoding
 from sbd.common.utils.timedelta import timedelta_parse
+from sbd.exceptions import MHTMLParsingError, SpriteExtractionError
 from sbd.sprite.extractor.base import SpriteFileHandler
-from sbd.sprite.extractor.exceptions import MHTMLParsingError, SpriteExtractionError
 from sbd.sprite.extractor.filehandler.models import (
     SourceMetadata,
     SpriteImg,

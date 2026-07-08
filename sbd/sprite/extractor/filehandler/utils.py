@@ -1,7 +1,7 @@
-from typing import Optional
 import re
+from typing import Optional
 
-from sbd.sprite.extractor.exceptions import MHTMLParsingError
+from sbd.exceptions import MHTMLParsingError
 from sbd.sprite.extractor.filehandler.models import SpriteImg, SpriteSheetImg
 
 _NO_SET = object()

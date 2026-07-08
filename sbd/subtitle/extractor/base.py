@@ -5,7 +5,7 @@ from typing import Iterator, Self
 import polars as pl
 
 from sbd.common.models.parquet_dataset import write_parquet
-from sbd.subtitle.extractor.exceptions import SubtitleExtractionError
+from sbd.exceptions import SubtitleExtractionError
 from sbd.subtitle.extractor.filehandler.base import SubtitleFileHandler
 from sbd.subtitle.models import SubTitle
 
