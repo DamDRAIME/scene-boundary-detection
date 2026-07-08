@@ -2,7 +2,7 @@ import warnings
 from copy import deepcopy
 
 from sbd.shared.utils.counter import Counter
-from sbd.subtitle.extractor.filehandler.models import SubTitle, Utterance
+from sbd.subtitle.models import SubTitle, Utterance
 
 
 def subtitles_to_utterances(
@@ -31,6 +31,8 @@ def subtitles_to_utterances(
                 idx=id_generator.next(),
                 timestamp=subtitle.timestamp.first_half(),
                 content=first_u,
+                filepath=subtitle.filepath,
+                line_idxs=[subtitle.line_idx],
                 subtitles=[subtitle],
             )
         )
@@ -40,6 +42,8 @@ def subtitles_to_utterances(
                     idx=id_generator.next(),
                     timestamp=subtitle.timestamp.second_half(),
                     content=second_u,
+                    filepath=subtitle.filepath,
+                    line_idxs=[subtitle.line_idx],
                     subtitles=[subtitle],
                 )
             )

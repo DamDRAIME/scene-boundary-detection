@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Iterator
 
-from sbd.subtitle.extractor.filehandler.models import SubTitle
+from sbd.subtitle.models import SubTitle
 
 
 class SubtitleFileHandler(ABC):

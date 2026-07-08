@@ -1,38 +1,47 @@
 import bisect
-from collections import defaultdict
-from contextlib import contextmanager
+from abc import ABC, abstractmethod
 from datetime import timedelta
 from pathlib import Path
 from typing import Generic, TypeVar
 
-import h5py
-import numpy as np
+import polars as pl
 
 from sbd.shared.utils.timedelta import convert_to_seconds
 
 T = TypeVar("T")
 
 
-class HDF5TimestampedDataset(Generic[T]):
+def write_parquet(filepath: str | Path, df: pl.DataFrame, metadata: dict[str, str]) -> Path:
+    filepath = Path(filepath).with_suffix(".parquet")
+    df.write_parquet(filepath, metadata={key: str(val) for key, val in metadata.items()})
+    return filepath
+
+
+class ParquetTimestampedDataset(ABC, Generic[T]):
+    timestamp_column = "timestamp_start"
+
     def __init__(self, filepath: str | Path):
         self.filepath = Path(filepath)
         if not self.filepath.exists():
-            raise FileNotFoundError(f"HDF5 file not found: {str(self.filepath)}")
-        if self.filepath.suffix != ".h5":
-            raise ValueError(f"Input file must be an HDF5 file with .h5 extension: {str(self.filepath)}")
+            raise FileNotFoundError(f"Parquet file not found: {str(self.filepath)}")
+        if self.filepath.suffix != ".parquet":
+            raise ValueError(f"Input file must be a Parquet file with .parquet extension: {str(self.filepath)}")
         self.metadata = self._load_metadata()
-        self._timestamps = self._load_timestamps()
+        self._df = pl.read_parquet(self.filepath)
+        self._timestamps = self._df[self.timestamp_column].to_numpy()
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(filepath={self.filepath.name}, metadata={self.metadata['data']})"
+        return f"{self.__class__.__name__}(filepath={self.filepath.name}, metadata={self.metadata})"
 
     def __len__(self):
-        return len(self._timestamps)
+        return len(self._df)
 
     def __getitem__(self, key: int | slice) -> tuple[float, T] | list[tuple[float, T]]:
+        if isinstance(key, int):
+            return self._timestamps[key], self._row_to_obj(self._df.row(key, named=True))
         timestamps = self._timestamps[key]
-        data = self._get(key)
-        return (timestamps, data) if isinstance(key, int) else list(zip(timestamps, data))
+        rows = self._df[key].iter_rows(named=True)
+        return [(ts, self._row_to_obj(row)) for ts, row in zip(timestamps, rows)]
 
     def find_lt(self, timestamp: float | timedelta) -> int:
         """Find rightmost value less than timestamp"""
@@ -67,7 +76,7 @@ class HDF5TimestampedDataset(Generic[T]):
         raise ValueError
 
     def find_nearest(self, timestamp: float | timedelta) -> int:
-        """Find the index of the subtitle with the nearest timestamp to the given timestamp."""
+        """Find the index of the entry with the nearest timestamp to the given timestamp."""
         timestamp = convert_to_seconds(timestamp)
         idx = bisect.bisect_left(self._timestamps, timestamp)
         if idx == 0:
@@ -82,48 +91,16 @@ class HDF5TimestampedDataset(Generic[T]):
             return idx - 1
 
     def find_between(self, start: float | timedelta, end: float | timedelta) -> tuple[int, int]:
-        """Find all subtitle indices between start and end timestamps (inclusive)."""
+        """Find all entry indices between start and end timestamps (inclusive)."""
         start, end = convert_to_seconds(start), convert_to_seconds(end)
         if start > end:
             raise ValueError("`start` timestamp must be less than or equal to `end` timestamp.")
         return self.find_ge(start), self.find_le(end)
 
     def _load_metadata(self) -> dict:
-        metadata = defaultdict(dict)
-        with self.open() as h5_fh:
-            root_datasets = [
-                key for key in h5_fh.keys() if isinstance(h5_fh[key], h5py.Dataset) and key in ["data", "timestamps"]
-            ]
-            if not all(dataset_name in root_datasets for dataset_name in ["data", "timestamps"]):
-                raise KeyError(
-                    f"Required datasets 'data' and 'timestamps' not found in HDF5 file: {str(self.filepath)}"
-                )
-            for dataset_name in root_datasets:
-                dataset = h5_fh[dataset_name]
-                for key, val in dataset.attrs.items():
-                    metadata[dataset_name][key] = val
-        return metadata
+        metadata = pl.read_parquet_metadata(self.filepath)
+        return {key: val for key, val in metadata.items() if not key.startswith("ARROW:")}
 
-    def _load_timestamps(self) -> list[float]:
-        with self.open() as h5_fh:
-            if "timestamps" not in h5_fh:
-                raise KeyError(f"'timestamps' dataset not found in HDF5 file: {str(self.filepath)}")
-            return h5_fh["timestamps"][:]
-
-    def _get(self, key: int | slice) -> T | list[T]:
-        with self.open() as h5_fh:
-            if "data" not in h5_fh:
-                raise KeyError(f"'data' dataset not found in HDF5 file: {str(self.filepath)}")
-            return h5_fh["data"][key]
-
-    @contextmanager
-    def open(self) -> h5py.File:
-        h5_fh = h5py.File(self.filepath, "r")
-        try:
-            yield h5_fh
-        finally:
-            h5_fh.close()
-
-
-class HDF5TimestampedImgDataset(HDF5TimestampedDataset[np.ndarray]):
-    pass
+    @abstractmethod
+    def _row_to_obj(self, row: dict) -> T:
+        pass
