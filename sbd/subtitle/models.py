@@ -92,3 +92,26 @@ class Utterance:
             filepath=Path(obj["filepath"]) if obj["filepath"] is not None else None,
             line_idxs=list(obj["line_idxs"]),
         )
+
+
+@dataclass
+class SubtitleStreamMetadata:
+    index: int
+    codec_name: str
+    codec_long_name: str
+    start_time: float
+    duration: float
+    language: str | None
+    title: str | None
+
+    @classmethod
+    def from_ffprobe(cls, stream: dict) -> Self:
+        return cls(
+            index=stream["index"],
+            codec_name=stream["codec_name"],
+            codec_long_name=stream["codec_long_name"],
+            start_time=float(stream["start_time"]),
+            duration=float(stream["duration"]),
+            language=stream.get("tags", {}).get("language"),
+            title=stream.get("tags", {}).get("title"),
+        )
