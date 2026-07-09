@@ -11,6 +11,7 @@ from sbd.subtitle.models import Coordinates, SubTitle, Timestamps
 
 
 class SRTFileHandler(SubtitleFileHandler):
+    file_suffix = ".srt"
     timestamp_line_pattern = re.compile(
         r"^(?P<start>[\d:,.]+)"  # Start timestamp
         r"\s*-->\s*"  # Timestamps separator

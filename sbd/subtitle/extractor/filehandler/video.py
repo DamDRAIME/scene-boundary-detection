@@ -1,13 +1,22 @@
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
 import ffmpeg
 
 from sbd.exceptions import VideoParsingError
+from sbd.subtitle.extractor.filehandler.ass import ASSFileHandler
 from sbd.subtitle.extractor.filehandler.base import SubtitleFileHandler
 from sbd.subtitle.extractor.filehandler.srt import SRTFileHandler
 from sbd.subtitle.models import SubTitle, SubtitleStreamMetadata
+
+# Maps a subtitle codec name (as reported by ffprobe) to the file suffix/codec to pass to
+# ffmpeg and the file handler used to parse the resulting temporary file.
+CODEC_HANDLERS: dict[str, type[SubtitleFileHandler]] = {
+    "subrip": SRTFileHandler,
+    "ass": ASSFileHandler,
+}
 
 
 class VideoFileHandler(SubtitleFileHandler):
@@ -17,29 +26,29 @@ class VideoFileHandler(SubtitleFileHandler):
 
     def iter_subtitles(self, stream_idx: int = None) -> Iterator[SubTitle]:
         stream_meta = self.get_subtitle_stream(stream_idx)
-        if stream_meta.codec_name == "subrip":
-            yield from self._iter_subrip_subtitles(stream_meta)
-        else:
+        codec_handler = CODEC_HANDLERS.get(stream_meta.codec_name)
+        if codec_handler is None:
             raise VideoParsingError(
-                f"Unsupported subtitle codec '{stream_meta.codec_name}' in stream index {stream_meta.index} of {self.filepath}."
+                f"Unsupported subtitle codec '{stream_meta.codec_name}' in stream index {stream_meta.index} of "
+                f"{self.filepath}. Currently supported codecs: {', '.join(CODEC_HANDLERS.keys())}"
             )
-
-    def _iter_subrip_subtitles(self, stream_meta: SubtitleStreamMetadata) -> Iterator[SubTitle]:
-        # `delete=False` + closing the handle before invoking ffmpeg is required on Windows,
-        # where an open NamedTemporaryFile holds an exclusive lock that blocks ffmpeg from writing to it.
-        named_file = tempfile.NamedTemporaryFile(mode="w+t", suffix=".srt", delete=False)
-        named_file.close()
-        stream = ffmpeg.input(str(self.filepath))
-        try:
-            stream.output(named_file.name, map=f"0:{stream_meta.index}", **{"c:s": "srt"}).run(
-                overwrite_output=True, quiet=True
-            )
-
-            # Read the temporary file and yield SubTitle objects
-            srt_handler = SRTFileHandler(named_file.name)
-            for subtitle in srt_handler.iter_subtitles():
+        with self._extract_stream_to_temp_file(stream_meta, codec_handler.file_suffix) as temp_filepath:
+            handler = codec_handler(temp_filepath)
+            for subtitle in handler.iter_subtitles():
                 subtitle.filepath = Path(self.filepath)  # Set the original video file path not the temporary file path
                 yield subtitle
+
+    @contextmanager
+    def _extract_stream_to_temp_file(self, stream_meta: SubtitleStreamMetadata, suffix: str) -> Iterator[Path]:
+        # `delete=False` + closing the handle before invoking ffmpeg is required on Windows,
+        # where an open NamedTemporaryFile holds an exclusive lock that blocks ffmpeg from writing to it.
+        named_file = tempfile.NamedTemporaryFile(mode="w+t", suffix=suffix, delete=False)
+        named_file.close()
+        try:
+            ffmpeg.input(str(self.filepath)).output(
+                named_file.name, map=f"0:{stream_meta.index}", **{"c:s": suffix.lstrip(".")}
+            ).run(overwrite_output=True, quiet=True)
+            yield Path(named_file.name)
         finally:
             Path(named_file.name).unlink()
 
