@@ -1,8 +1,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import StrEnum
 
-from sbd.screenplay.typings import Label
+
+class Label(StrEnum):
+    C = "Character"
+    D = "Deletion"
+    E = "Extension"
+    G = "Camera Guidance"
+    I = "Character Introduction"
+    M = "Metadata"
+    N = "Narrative"
+    O = "Omit"
+    P = "Parenthetical"
+    S = "Scene Heading"
+    T = "Transition"
+    U = "Utterance"
+    Y = "Chyron"
 
 
 @dataclass
@@ -10,7 +25,8 @@ class ScreenplayElement:
     id: int
     line_start_idx: int
     line_stop_idx: int
-    _type: Label | str = None
+    recently_modified: bool
+    _type: Label | str
 
     def to_dict(self) -> dict:
         data = {
@@ -28,37 +44,47 @@ class ScreenplayElement:
 
 
 @dataclass
-class Utterance(ScreenplayElement):
+class ScreenplayChildElement(ScreenplayElement):
     value: str
+
+
+@dataclass
+class ScreenplayParentElement(ScreenplayElement):
+    content: list["ScreenplayParentElement", ScreenplayChildElement]
+
+
+@dataclass(kw_only=True)
+class Utterance(ScreenplayChildElement):
     _type: Label = Label.U
 
 
-@dataclass
-class Parenthetical(ScreenplayElement):
-    value: str
+@dataclass(kw_only=True)
+class Parenthetical(ScreenplayChildElement):
     _type: Label = Label.P
 
 
-@dataclass
-class Narrative(ScreenplayElement):
-    value: str
+@dataclass(kw_only=True)
+class Narrative(ScreenplayChildElement):
     _type: Label = Label.N
 
 
-@dataclass
-class Transition(ScreenplayElement):
-    value: str
+@dataclass(kw_only=True)
+class Transition(ScreenplayChildElement):
     _type: Label = Label.T
 
 
-@dataclass
-class Metadata(ScreenplayElement):
-    value: str
+@dataclass(kw_only=True)
+class Metadata(ScreenplayChildElement):
     _type: Label = Label.M
 
 
-@dataclass
-class Dialogue(ScreenplayElement):
+@dataclass(kw_only=True)
+class Chyron(ScreenplayChildElement):
+    _type: Label = Label.Y
+
+
+@dataclass(kw_only=True)
+class Dialogue(ScreenplayParentElement):
     character: str
     extensions: list[str]
     content: list[Utterance | Parenthetical] = field(default_factory=list)
@@ -71,8 +97,8 @@ class Dialogue(ScreenplayElement):
         return data
 
 
-@dataclass
-class Scene(ScreenplayElement):
+@dataclass(kw_only=True)
+class Scene(ScreenplayParentElement):
     id: int
     heading: str
     content: list[Narrative | Transition | Metadata | Dialogue] = field(default_factory=list)
@@ -90,13 +116,29 @@ class ParsedLine:
     line_idx: int  # Index starts at 1
     labels: frozenset[Label]
     content: str
+    labels_priority: list[Label] = field(default_factory=list)
 
     @property
-    def sanitized_content(self):
-        return self.content.strip()
+    def sanitized_content(self) -> str:
+        return self.content.rstrip().rstrip("*").rstrip().lstrip()
 
-    def get_primary_label(self, priority: list[Label]) -> Label:
-        for p in priority:
+    @property
+    def is_stared(self) -> bool:
+        return self.content.rstrip().endswith("*")
+
+    @property
+    def is_scene_boundary(self) -> bool:
+        return any(scene_label in self.labels for scene_label in [Label.S, Label.D])
+
+    @property
+    def primary_label(self) -> Label:
+        if self.labels_priority is None:
+            return next(iter(self.labels), Label.O)
+        for p in self.labels_priority:
             if p in self.labels:
                 return p
         return next(iter(self.labels), Label.O)
+
+    def get_primary_label(self, priority: list[Label] | None = None) -> Label:
+        self.labels_priority = priority
+        return self.primary_label

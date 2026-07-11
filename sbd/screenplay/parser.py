@@ -20,13 +20,10 @@ U  Utterance      spoken dialogue
 from __future__ import annotations
 
 import json
-import re
 import sys
 from pathlib import Path
-from typing import Self
+import re
 
-from sbd.common.utils import detect_encoding
-from sbd.common.utils.counter import Counter
 from sbd.screenplay.exceptions import SCREENPLAYParsingError
 from sbd.screenplay.models import (
     Deletion,
@@ -36,11 +33,14 @@ from sbd.screenplay.models import (
     Parenthetical,
     ParsedLine,
     Scene,
+    ScreenplayElement,
     Transition,
     Utterance,
 )
 from sbd.screenplay.typings import Label, PreludeContent, SceneContent
-from sbd.screenplay.utils import extract_primary_label, sanitize_labels
+from sbd.screenplay import utils as sp_utils
+from sbd.shared.utils import detect_encoding
+from sbd.shared.utils.counter import Counter
 
 LABELS_TO_IGNORE = frozenset({Label.I, Label.G})
 LABELS_PRIORITY = [Label.S, Label.C, Label.U, Label.P, Label.E, Label.N, Label.T, Label.M, Label.D, Label.O]
@@ -208,7 +208,7 @@ def _build_content(lines: list[ParsedLine], ids: Counter) -> list[SceneContent]:
         dlg.line_stop = line_num  # extend to last utterance/parenthetical
 
     for labels, content, line_num in lines:
-        primary_label = extract_primary_label(labels, LABELS_PRIORITY)
+        primary_label = sp_utils.extract_primary_label(labels, LABELS_PRIORITY)
 
         if primary_label == Label.O:
             # Ends a narrative paragraph but leaves any open dialogue block intact
@@ -361,33 +361,27 @@ class ScreenplayParser:
         previous_label: Label = None
         buffer: list[ParsedLine] = []
 
-        def flush_buffer() -> None:
-            nonlocal narrative_buffer
-            if narrative_buffer:
-                self.prelude.append(
-                    Narrative(
-                        id=id_generator.next(),
-                        value=" ".join(t for t, _ in narrative_buffer),
-                        line_start=narrative_buffer[0][1],
-                        line_stop=narrative_buffer[-1][1],
-                    )
-                )
-                narrative_buffer = []
+        def flush_buffer(accumulator: list[PreludeContent | Scene]) -> None:
+            nonlocal buffer, id_generator
+            if buffer:
+                accumulator.append(sp_utils.build_screenplay_element(buffer, id_generator))
+                buffer = []
 
         for pl in parsed_lines[first_non_meta_line_idx:first_scene_line_idx]:
-            primary_label = pl.get_primary_label(LABELS_PRIORITY)
-            if primary_label == Label.O:
+            if pl.primary_label == Label.O:
                 if previous_label is not None and previous_label not in LABELS_PRESERVING_CONTINUITY_AFTER_O:
-                    flush_buffer()
+                    flush_buffer(self.prelude)
                 continue
             if not pl.sanitized_content:
                 raise SCREENPLAYParsingError(f"Empty line not labeled `O` at {self.filepath}:{pl.line_idx}")
-            if primary_label != previous_label:
-                flush_buffer()
-                previous_label = primary_label
+            if previous_label == Label.C and pl.primary_label in (Label.E, Label.P, Label.U):
+                pass
+            elif pl.primary_label != previous_label:
+                flush_buffer(self.prelude)
+                previous_label = pl.primary_label
             buffer.append(pl)
 
-        flush_buffer()
+        flush_buffer(self.prelude)
 
         # ── Scenes ───────────────────────────────────────────────────────────
         # Scene boundaries: S lines (with S>S / S>O>S heading extension) and D
@@ -416,13 +410,10 @@ class ScreenplayParser:
                 )
             )
 
-        for labels, content, line_num in parsed[first_scene:]:
-            primary_label = extract_primary_label(labels, LABELS_PRIORITY)
-            is_scene_boundary = Label.S in labels or primary_label == Label.D
-            is_deletion = primary_label == Label.D and Label.S not in labels
+        for pl in parsed_lines[first_scene_line_idx:]:
 
-            if is_scene_boundary:
-                if not is_deletion and current_heading is not None and last_non_o_label == Label.S:
+            if pl.is_scene_boundary:
+                if not pl.get_primary_label == Label.D and current_heading is not None and last_non_o_label == Label.S:
                     # S>S or S>O>S: extend the heading; discard buffered O lines.
                     current_heading += " " + content.strip()
                     current_heading_stop = line_num
@@ -458,7 +449,7 @@ class ScreenplayParser:
             flush_scene()
 
     @classmethod
-    def read(cls, filepath: Path | str) -> Self:
+    def read(cls, filepath: Path | str) -> "ScreenplayParser":
         _self = cls(filepath)
         _self.parse()
         return _self
@@ -478,7 +469,9 @@ class ScreenplayParser:
             if "|" not in raw:
                 raise SCREENPLAYParsingError(f"No label found at {self.filepath}:{line_idx}")
             labels_str, content = raw.split("|", 1)
-            parsed_lines.append((sanitize_labels(labels_str, labels_to_ignore), content, line_idx))
+            parsed_lines.append(
+                ParsedLine(line_idx, sp_utils.sanitize_labels(labels_str, labels_to_ignore), content, LABELS_PRIORITY)
+            )
         return parsed_lines
 
     def _find_first_occurrence(self, parsed_lines: list[ParsedLine], labels: list[Label]) -> int:
