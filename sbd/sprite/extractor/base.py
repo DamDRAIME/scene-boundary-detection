@@ -37,6 +37,8 @@ class SpriteExtractor(ABC):
                 data.attrs[attr_name] = getattr(self, attr_name, "N/A")
             timestamps.attrs["unit"] = "seconds"
 
+        return output_filepath
+
     @property
     @abstractmethod
     def height(self) -> int:

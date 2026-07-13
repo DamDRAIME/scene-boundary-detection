@@ -1,1 +1,1 @@
-from sbd.subtitle.extractor.extractors import MHTMLSpriteExtractor, VideoSpriteExtractor
+from sbd.sprite.extractor.extractors import MHTMLSpriteExtractor, VideoSpriteExtractor
