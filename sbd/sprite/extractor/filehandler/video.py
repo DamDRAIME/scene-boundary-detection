@@ -54,10 +54,14 @@ class VideoFileHandler(SpriteFileHandler):
         video_stream = next(s for s in meta["streams"] if s["codec_type"] == "video")
         if not video_stream:
             raise VideoParsingError("Could not find a stream with a `video` codec type.")
+        fps = float(Fraction(video_stream["r_frame_rate"]))
+        duration = float(video_stream.get("duration") or meta["format"]["duration"])
+        # Matroska containers often omit `nb_frames`; fall back to an estimate from duration and fps.
+        n_sprites = int(video_stream["nb_frames"]) if "nb_frames" in video_stream else round(duration * fps)
         return SourceMetadata(
-            fps=float(Fraction(video_stream["r_frame_rate"])),
-            duration=float(video_stream.get("duration") or meta["format"]["duration"]),
-            n_sprites=int(video_stream["nb_frames"]),
+            fps=fps,
+            duration=duration,
+            n_sprites=n_sprites,
             sprite_shape=(int(video_stream["height"]), int(video_stream["width"])),
         )
 
