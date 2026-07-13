@@ -5,6 +5,8 @@ import typer
 from InquirerPy import get_style, inquirer
 from InquirerPy.base.control import Choice
 
+from sbd.sprite.extractor.extractors import MHTMLSpriteExtractor, VideoSpriteExtractor
+from sbd.sprite.extractor.filehandler.models import ExtractionMethod
 from sbd.subtitle.extractor.extractors import ASSSubtitleExtractor, SRTSubtitleExtractor, VideoSubtitleExtractor
 from sbd.subtitle.extractor.filehandler.video import VideoFileHandler
 
@@ -75,6 +77,39 @@ def extract_subtitles(
         result_path = extractor.extract(output_path, stream_idx=stream_idx)
 
     typer.echo(f"Extracted subtitles written to {result_path}")
+
+
+@app.command()
+def extract_sprites(
+    input_path: Path = typer.Argument(..., exists=True, help="Path to a video or `.mhtml` file."),
+    output_path: Path = typer.Argument(..., help="Path to write the extracted sprites HDF5 dataset to."),
+    fps: float = typer.Option(1.0, help="Number of sprites to extract per second. Video files only."),
+    height: Optional[int] = typer.Option(
+        None, help="Resize height. Mutually exclusive with `--scale-ratio`. Video files only."
+    ),
+    width: Optional[int] = typer.Option(
+        None, help="Resize width. Mutually exclusive with `--scale-ratio`. Video files only."
+    ),
+    scale_ratio: Optional[float] = typer.Option(
+        None, help="Rescaling ratio to apply. Mutually exclusive with `--height`/`--width`. Video files only."
+    ),
+    method: ExtractionMethod = typer.Option(
+        ExtractionMethod.SELECT.value, help="Frame extraction method to use. Video files only."
+    ),
+    grid_rows: int = typer.Option(3, help="Sprite sheet grid rows. `.mhtml` files only."),
+    grid_cols: int = typer.Option(3, help="Sprite sheet grid columns. `.mhtml` files only."),
+) -> None:
+    """Extract sprites from a video or `.mhtml` sprite-sheet file into an HDF5 dataset."""
+    if input_path.suffix.lower() == ".mhtml":
+        extractor = MHTMLSpriteExtractor.from_file(input_path, grid_shape=(grid_rows, grid_cols))
+        result_path = extractor.extract(output_path)
+    else:
+        extractor = VideoSpriteExtractor.from_file(input_path)
+        result_path = extractor.extract(
+            output_path, fps=fps, height=height, width=width, scale_ratio=scale_ratio, method=method
+        )
+
+    typer.echo(f"Extracted sprites written to {result_path}")
 
 
 if __name__ == "__main__":
