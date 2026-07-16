@@ -14,7 +14,7 @@ from sbd.sprite.extractor.filehandler.utils import resolve_shape
 class VideoFileHandler(SpriteFileHandler):
     def __init__(self, filepath: str | Path):
         super().__init__(filepath)
-        self._src_meta = self.get_source_metadata()
+        self._src_meta = self.get_source_metadata(self.filepath)
 
     def iter_sprites(
         self,
@@ -49,8 +49,12 @@ class VideoFileHandler(SpriteFileHandler):
             return self._iter_frames_select(fps, width, height)
         return self._iter_frames_seek(fps, width, height)
 
-    def get_source_metadata(self) -> SourceMetadata:
-        meta = self.get_source_raw_metadata(self.filepath)
+    @staticmethod
+    def get_source_metadata(filepath: str | Path) -> SourceMetadata:
+        try:
+            meta = ffmpeg.probe(filepath)
+        except Exception as e:
+            raise VideoParsingError("Invalid file type") from e
         video_stream = next(s for s in meta["streams"] if s["codec_type"] == "video")
         if not video_stream:
             raise VideoParsingError("Could not find a stream with a `video` codec type.")
@@ -64,13 +68,6 @@ class VideoFileHandler(SpriteFileHandler):
             n_sprites=n_sprites,
             sprite_shape=(int(video_stream["height"]), int(video_stream["width"])),
         )
-
-    @staticmethod
-    def get_source_raw_metadata(filepath: str | Path) -> dict[str, Any]:
-        try:
-            return ffmpeg.probe(filepath)
-        except Exception as e:
-            raise VideoParsingError("Invalid file type") from e
 
     def _iter_frames_select(self, fps: float, width: int, height: int) -> Iterator[tuple[float, np.ndarray]]:
         frame_size = width * height * 3

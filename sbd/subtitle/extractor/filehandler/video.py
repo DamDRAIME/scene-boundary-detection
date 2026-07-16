@@ -22,7 +22,7 @@ CODEC_HANDLERS: dict[str, type[SubtitleFileHandler]] = {
 class VideoFileHandler(SubtitleFileHandler):
     def __init__(self, filepath: str | Path):
         super().__init__(filepath)
-        self._src_meta = self.get_source_metadata()
+        self._src_meta = self.get_source_metadata(self.filepath)
 
     def iter_subtitles(self, stream_idx: int = None) -> Iterator[SubTitle]:
         stream_meta = self.get_subtitle_stream(stream_idx)
@@ -52,19 +52,16 @@ class VideoFileHandler(SubtitleFileHandler):
         finally:
             Path(named_file.name).unlink()
 
-    def get_source_metadata(self) -> list[SubtitleStreamMetadata]:
-        meta = self.get_source_raw_metadata(self.filepath)
+    @staticmethod
+    def get_source_metadata(filepath: str | Path) -> list[SubtitleStreamMetadata]:
+        try:
+            meta = ffmpeg.probe(str(filepath))
+        except Exception as e:
+            raise VideoParsingError("Invalid file type") from e
         subtitle_streams = [s for s in meta["streams"] if s["codec_type"] == "subtitle"]
         if not subtitle_streams:
             raise VideoParsingError("Could not find a stream with a `subtitle` codec type.")
         return [SubtitleStreamMetadata.from_ffprobe(s) for s in subtitle_streams]
-
-    @staticmethod
-    def get_source_raw_metadata(filepath: str | Path) -> dict[str, Any]:
-        try:
-            return ffmpeg.probe(str(filepath))
-        except Exception as e:
-            raise VideoParsingError("Invalid file type") from e
 
     def get_subtitle_stream(self, stream_idx: int | None) -> SubtitleStreamMetadata:
         if stream_idx is None:

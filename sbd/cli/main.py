@@ -37,19 +37,19 @@ STREAM_PICKER_STYLE = get_style(
 
 
 def _select_stream_idx(filepath: Path) -> int:
-    streams = VideoFileHandler(filepath).get_source_metadata()
-    if len(streams) == 1:
-        return streams[0].index
+    subtitle_streams = VideoFileHandler.get_source_metadata(filepath)
+    if len(subtitle_streams) == 1:
+        return subtitle_streams[0].index
 
-    codec_width = max(len(stream.codec_name) for stream in streams)
-    lang_width = max(len(stream.language or "und") for stream in streams)
+    codec_width = max(len(stream.codec_name) for stream in subtitle_streams)
+    lang_width = max(len(stream.language or "und") for stream in subtitle_streams)
     choices = [
         Choice(
             value=stream.index,
             name=f"[#{stream.index:<3}] {stream.codec_name.upper():<{codec_width}}  "
             f"{(stream.language or 'und').upper():<{lang_width}}  {stream.title or '(untitled)'}",
         )
-        for stream in streams
+        for stream in subtitle_streams
     ]
     return inquirer.select(
         message=f"Multiple subtitle streams found in {filepath.name}:",
