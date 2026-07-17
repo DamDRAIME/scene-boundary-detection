@@ -5,6 +5,7 @@ from enum import StrEnum
 
 
 class Label(StrEnum):
+    A = "Act"
     C = "Character"
     D = "Deletion"
     E = "Extension"
@@ -23,8 +24,8 @@ class Label(StrEnum):
 @dataclass
 class ScreenplayElement:
     id: int
-    line_start_idx: int
-    line_stop_idx: int
+    source_line_start_idx: int
+    source_line_stop_idx: int
     recently_modified: bool
     _type: Label | str
 
@@ -32,9 +33,9 @@ class ScreenplayElement:
         data = {
             "id": self.id,
             "type": self._type.value if isinstance(self._type, Label) else self._type,
-            "value": self.value,
-            "line_start_idx": self.line_start,
-            "line_stop_idx": self.line_stop,
+            "source_line_start_idx": self.source_line_start_idx,
+            "source_line_stop_idx": self.source_line_stop_idx,
+            "recently_modified": self.recently_modified,
         }
         if hasattr(self, "value"):
             data["value"] = self.value
@@ -101,13 +102,14 @@ class Dialogue(ScreenplayParentElement):
 class Scene(ScreenplayParentElement):
     id: int
     heading: str
-    content: list[Narrative | Transition | Metadata | Dialogue] = field(default_factory=list)
+    content: list[Narrative | Transition | Metadata | Dialogue | Chyron] = field(default_factory=list)
     deleted: bool = False
+    act: str | None = None
     _type: Label = Label.S
 
     def to_dict(self) -> dict:
         data = super().to_dict()
-        data |= {"deleted": self.deleted, "heading": self.heading}
+        data |= {"deleted": self.deleted, "heading": self.heading, "act": self.act}
         return data
 
 
