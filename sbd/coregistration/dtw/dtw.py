@@ -5,7 +5,7 @@ from enum import StrEnum, auto
 import torch
 
 from sbd.common.utils.gpu_check import is_cuda_available
-from sbd.dtw.distance import DistanceFunction, get_distance_fn
+from sbd.coregistration.distance import ProximityMetric, compute_pairwise_distance
 
 
 class Window(StrEnum):
@@ -18,16 +18,15 @@ class Window(StrEnum):
 class DTWOutput:
     a: torch.Tensor
     b: torch.Tensor
-    distance_fn: DistanceFunction
+    metric: ProximityMetric
     distance: float
     optimal_warping_path: torch.Tensor
     cost_matrix: torch.Tensor | None = None
     accumulated_cost_matrix: torch.Tensor | None = None
 
 
-def _compute_cost_matrix(a: torch.Tensor, b: torch.Tensor, distance_fn: DistanceFunction) -> torch.Tensor:
-    dist_fn = get_distance_fn(distance_fn)
-    return dist_fn(a, b)
+def _compute_cost_matrix(a: torch.Tensor, b: torch.Tensor, metric: ProximityMetric) -> torch.Tensor:
+    return compute_pairwise_distance(a, b, metric)
 
 
 def _compute_accumulated_cost_matrix_cpu(cost_matrix: torch.Tensor) -> torch.Tensor:
@@ -151,7 +150,7 @@ def _compute_optimal_warping_path(accumulated_cost_matrix: torch.Tensor) -> torc
 def dtw(
     a: torch.Tensor,
     b: torch.Tensor,
-    distance_fn: DistanceFunction,
+    metric: ProximityMetric,
     # step_pattern,
     # window: Window | None = None,
     keep_artifacts: bool = False,
@@ -160,7 +159,7 @@ def dtw(
     assert a.dim() == 2, f"Expected `a` to be a tensor with 2 dimensions, got {a.dim()} dimension(s)."
     assert b.dim() == 2, f"Expected `b` to be a tensor with 2 dimensions, got {b.dim()} dimension(s)."
 
-    cm = _compute_cost_matrix(a, b, distance_fn)
+    cm = _compute_cost_matrix(a, b, metric)
 
     if use_gpu:
         if not is_cuda_available(min_cc=7):
@@ -177,7 +176,7 @@ def dtw(
     return DTWOutput(
         a,
         b,
-        distance_fn,
+        metric,
         distance=acm[-1, -1].item(),
         optimal_warping_path=path,
         cost_matrix=cm if keep_artifacts else None,

@@ -4,14 +4,24 @@ from typing import Callable
 
 import torch
 
-from sbd.dtw.utils import negate_fn, normalize_batch_of_tensors
+from sbd.coregistration.utils import negate_fn, normalize_batch_of_tensors
 
 
-class DistanceFunction(StrEnum):
+class ProximityMetric(StrEnum):
     COSINE = auto()
     DOT_PRODUCT = auto()
     EUCLIDEAN = auto()
     MANHATTAN = auto()
+
+
+def compute_pairwise_distance(a: torch.Tensor, b: torch.Tensor, metric: ProximityMetric) -> torch.Tensor:
+    dist_metric = get_distance_fn(metric)
+    return dist_metric(a, b)
+
+
+def compute_pairwise_similarity(a: torch.Tensor, b: torch.Tensor, metric: ProximityMetric) -> torch.Tensor:
+    dist_metric = get_similarity_fn(metric)
+    return dist_metric(a, b)
 
 
 def dot_product(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
@@ -72,13 +82,25 @@ def euclidean(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     return torch.cdist(a, b, p=2.0)
 
 
-def get_distance_fn(distance_fn: DistanceFunction) -> Callable:
-    if distance_fn == DistanceFunction.COSINE:
+def get_distance_fn(metric: ProximityMetric) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
+    if metric == ProximityMetric.COSINE:
         return partial(negate_fn, cosine)
-    if distance_fn == DistanceFunction.DOT_PRODUCT:
+    if metric == ProximityMetric.DOT_PRODUCT:
         return partial(negate_fn, dot_product)
-    if distance_fn == DistanceFunction.EUCLIDEAN:
+    if metric == ProximityMetric.EUCLIDEAN:
         return euclidean
-    if distance_fn == DistanceFunction.MANHATTAN:
+    if metric == ProximityMetric.MANHATTAN:
         return manhattan
-    raise NotImplementedError(f"{distance_fn} has not yet been implemented.")
+    raise NotImplementedError(f"{metric} has not yet been implemented.")
+
+
+def get_similarity_fn(metric: ProximityMetric) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
+    if metric == ProximityMetric.COSINE:
+        return cosine
+    if metric == ProximityMetric.DOT_PRODUCT:
+        return dot_product
+    if metric == ProximityMetric.EUCLIDEAN:
+        return partial(negate_fn, euclidean)
+    if metric == ProximityMetric.MANHATTAN:
+        return partial(negate_fn, manhattan)
+    raise NotImplementedError(f"{metric} has not yet been implemented.")

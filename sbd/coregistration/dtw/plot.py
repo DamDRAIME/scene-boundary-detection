@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from labellines import labelLines
 
-from sbd.dtw.dtw import DTWOutput
-from sbd.dtw.utils import gaussian_blur
+from sbd.coregistration.dtw.dtw import DTWOutput
+from sbd.coregistration.dtw.utils import gaussian_blur
 
 
 class PlotType(StrEnum):
@@ -30,7 +30,7 @@ def plot(
 
     cm = dtw.cost_matrix
     sns.set_theme()
-    fig, ax = plt.subplots(figsize=(6, 6))
+    fig, ax = plt.subplots(figsize=(60, 60))
 
     # Heatmap
     ax.imshow(cm.T.cpu(), origin="lower", cmap=sns.cubehelix_palette(as_cmap=True))
