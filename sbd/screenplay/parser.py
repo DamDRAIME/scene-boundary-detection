@@ -18,19 +18,10 @@ class ScreenplayParser:
     def __init__(self, filepath: Path | str):
         self.filepath = Path(filepath)
         self.encoding = detect_encoding(self.filepath)
-        self.meta: Metadata = None
-        self.scenes: list[Scene] = []
 
-    @property
-    def data(self) -> dict:
-        return {
-            "meta": self.meta.to_dict(),
-            "scenes": [s.to_dict() for s in self.scenes],
-        }
-
-    def parse(self) -> None:
-        self.meta: Metadata = None
-        self.scenes: list[Scene] = []
+    def __call__(self) -> tuple[Metadata, list[Scene]]:
+        meta: Metadata = None
+        scenes: list[Scene] = []
 
         raw_lines = self.filepath.read_text(encoding=self.encoding).splitlines()
         parsed_lines = self._parse_lines(raw_lines, LABELS_TO_IGNORE)
@@ -47,7 +38,7 @@ class ScreenplayParser:
                 continue
             metadata_buffer.append(pl)
         if metadata_buffer:
-            self.meta = Metadata(
+            meta = Metadata(
                 id=id_generator.next(),
                 value="\n".join(pl.sanitized_content for pl in metadata_buffer),
                 source_line_start_idx=metadata_buffer[0].line_idx,
@@ -85,9 +76,9 @@ class ScreenplayParser:
         for pl in parsed_lines[first_non_meta_line_idx:]:
             if pl.primary_label == Label.D:  # Automatically flush Omitted Scenes on each occurrence.
                 flush_buffer(scene_content)
-                flush_scene(self.scenes)
+                flush_scene(scenes)
                 scene_heading.append(pl)
-                flush_scene(self.scenes)
+                flush_scene(scenes)
                 continue
             if pl.primary_label == Label.O:
                 if previous_label is not None and previous_label not in LABELS_PRESERVING_CONTINUITY_AFTER_O:
@@ -102,13 +93,13 @@ class ScreenplayParser:
             elif pl.primary_label != previous_label:
                 flush_buffer(scene_content)
                 if pl.primary_label == Label.A:
-                    flush_scene(self.scenes)
+                    flush_scene(scenes)
                     act = pl.sanitized_content
                     previous_label = Label.A
                     continue
                 if pl.primary_label == Label.S:
                     if previous_label != Label.A:
-                        flush_scene(self.scenes)
+                        flush_scene(scenes)
                     scene_heading.append(pl)
                     previous_label = Label.S
                     continue
@@ -117,13 +108,8 @@ class ScreenplayParser:
             lines_buffer.append(pl)
 
         flush_buffer(scene_content)
-        flush_scene(self.scenes)
-
-    @classmethod
-    def read(cls, filepath: Path | str) -> "ScreenplayParser":
-        _self = cls(filepath)
-        _self.parse()
-        return _self
+        flush_scene(scenes)
+        return meta, scenes
 
     def save(self, output_filepath: Path | str | None = None) -> Path:
         if output_filepath is None:

@@ -144,3 +144,14 @@ class ParsedLine:
     def get_primary_label(self, priority: list[Label] | None = None) -> Label:
         self.labels_priority = priority
         return self.primary_label
+
+
+@dataclass
+class SingletonUtterance:
+    id: int
+    scene_id: int
+    scene_heading: str
+    character: str
+    content: str
+    source_line_start_idx: int
+    source_line_stop_idx: int

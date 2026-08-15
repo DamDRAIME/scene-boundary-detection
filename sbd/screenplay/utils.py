@@ -84,6 +84,14 @@ def build_child_element(buffer: list[ParsedLine], id: Counter) -> ScreenplayChil
     )
 
 
+def split_into_sentences(text: str, end_sentence_markers: tuple[str, ...] = (".", "!", "?", "-")) -> list[str]:
+    """Break `text` into singleton sentences, splitting right after any `end_sentence_markers` char
+    that is followed by whitespace (so mid-word hyphens, e.g. "twenty-two", are left untouched)."""
+    markers = re.escape("".join(end_sentence_markers))
+    parts = re.split(rf"(?<=[{markers}])\s+", text.strip())
+    return [part.strip() for part in parts if part.strip()]
+
+
 # ── Character-line parsing ───────────────────────────────────────────────────
 
 
