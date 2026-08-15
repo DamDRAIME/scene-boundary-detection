@@ -5,8 +5,8 @@ from pathlib import Path
 
 from sbd.common.utils.counter import Counter
 from sbd.common.utils.detect_encoding import detect_encoding
+from sbd.exceptions import SCREENPLAYParsingError
 from sbd.screenplay import utils as sp_utils
-from sbd.screenplay.exceptions import SCREENPLAYParsingError
 from sbd.screenplay.models import Label, Metadata, ParsedLine, Scene, ScreenplayElement
 
 LABELS_TO_IGNORE = frozenset({Label.I, Label.G})

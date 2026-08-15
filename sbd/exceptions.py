@@ -20,3 +20,7 @@ class ASSParsingError(ValueError):
 
 class SubtitleExtractionError(Exception):
     """Error linked to the extraction of subtitles"""
+
+
+class SCREENPLAYParsingError(ValueError):
+    """Error linked to the parsing of a SCREENPLAY file"""
