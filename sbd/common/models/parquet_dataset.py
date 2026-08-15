@@ -2,7 +2,7 @@ import bisect
 from abc import ABC, abstractmethod
 from datetime import timedelta
 from pathlib import Path
-from typing import Generic, TypeVar
+from typing import Generic, Iterator, TypeVar
 
 import polars as pl
 
@@ -35,6 +35,10 @@ class ParquetTimestampedDataset(ABC, Generic[T]):
 
     def __len__(self):
         return len(self._df)
+
+    def __iter__(self) -> Iterator[tuple[float, T]]:
+        for ts, row in zip(self._timestamps, self._df.iter_rows(named=True)):
+            yield ts, self._row_to_obj(row)
 
     def __getitem__(self, key: int | slice) -> tuple[float, T] | list[tuple[float, T]]:
         if isinstance(key, int):
