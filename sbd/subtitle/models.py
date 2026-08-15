@@ -21,6 +21,7 @@ class SubTitle:
     timestamp: Timestamps
     content: str
     coordinates: Optional[Coordinates] = None
+    embedding: Optional[list[float]] = field(default=None, repr=False)
 
     def serialize(self) -> dict:
         return {
@@ -34,6 +35,7 @@ class SubTitle:
             "y1": self.coordinates.y1 if self.coordinates else None,
             "x2": self.coordinates.x2 if self.coordinates else None,
             "y2": self.coordinates.y2 if self.coordinates else None,
+            "embedding": self.embedding,
         }
 
     @classmethod
@@ -48,6 +50,7 @@ class SubTitle:
             timestamp=Timestamps(timedelta(seconds=obj["timestamp_start"]), timedelta(seconds=obj["timestamp_end"])),
             content=obj["content"],
             coordinates=coordinates,
+            embedding=obj["embedding"],
         )
 
 
@@ -56,6 +59,7 @@ class Utterance:
     idx: int
     timestamp: Timestamps
     content: str
+    embedding: Optional[list[float]] = field(default=None, repr=False)
     # Assumes all associated subtitles come from the same file, since only `subtitles[0].filepath` is kept.
     filepath: Optional[Path] = None
     line_idxs: list[int] = field(default_factory=list)
@@ -64,6 +68,7 @@ class Utterance:
 
     @classmethod
     def from_subtitles(cls, *subtitles: SubTitle, idx: int) -> Self:
+        embedding = None if len(subtitles) > 1 else subtitles[0].embedding
         return cls(
             idx=idx,
             content=" ".join([s.content for s in subtitles]),
@@ -71,26 +76,29 @@ class Utterance:
             filepath=subtitles[0].filepath,
             line_idxs=[s.line_idx for s in subtitles],
             subtitles=subtitles,
+            embedding=embedding,
         )
 
     def serialize(self) -> dict:
         return {
             "idx": self.idx,
+            "filepath": str(self.filepath) if self.filepath is not None else None,
+            "line_idxs": list(self.line_idxs),
             "timestamp_start": self.timestamp.start.total_seconds(),
             "timestamp_end": self.timestamp.end.total_seconds(),
             "content": self.content,
-            "filepath": str(self.filepath) if self.filepath is not None else None,
-            "line_idxs": list(self.line_idxs),
+            "embedding": self.embedding,
         }
 
     @classmethod
     def deserialize(cls, obj: dict) -> Self:
         return cls(
             idx=obj["idx"],
-            timestamp=Timestamps(timedelta(seconds=obj["timestamp_start"]), timedelta(seconds=obj["timestamp_end"])),
-            content=obj["content"],
             filepath=Path(obj["filepath"]) if obj["filepath"] is not None else None,
             line_idxs=list(obj["line_idxs"]),
+            timestamp=Timestamps(timedelta(seconds=obj["timestamp_start"]), timedelta(seconds=obj["timestamp_end"])),
+            content=obj["content"],
+            embedding=obj["embedding"],
         )
 
 

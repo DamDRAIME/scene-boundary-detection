@@ -155,3 +155,4 @@ class SingletonUtterance:
     content: str
     source_line_start_idx: int
     source_line_stop_idx: int
+    embedding: list[float] | None = field(default=None, repr=False)
