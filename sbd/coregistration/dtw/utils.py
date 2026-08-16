@@ -8,10 +8,41 @@ from sbd.coregistration.dtw.models import Method
 
 
 def compute_cost_matrix(a: torch.Tensor, b: torch.Tensor, metric: ProximityMetric) -> torch.Tensor:
+    """Compute the local cost matrix between two sequences.
+
+    Each cell (i, j) holds the pairwise distance between element i of `a` and element j of `b` under `metric`.
+
+    Args:
+        a (torch.Tensor): First sequence of embeddings/features, shape (n, ...).
+        b (torch.Tensor): Second sequence of embeddings/features, shape (m, ...).
+        metric (ProximityMetric): Distance/similarity metric used to compare elements of `a` and `b`.
+
+    Returns:
+        torch.Tensor: Cost matrix of shape (n, m).
+    """
     return compute_pairwise_distance(a, b, metric)
 
 
 def initialize_accumulated_cost_matrix(cost_matrix: torch.Tensor, method: Method) -> torch.Tensor:
+    """Initialize the accumulated cost matrix (ACM) boundary conditions for a DTW variant.
+
+    Allocates a zero matrix the same shape as `cost_matrix` and fills column 0 with the cumulative sum of the
+    local cost (standard for both variants), and row 0 either as a cumulative sum (Classic, forcing the warping
+    path to start at cell (0, 0)) or as a raw copy of the local cost (Subsequence, allowing the path to start at
+    any position along the Reference sequence without penalty). The remaining interior cells are left as zero and
+    must be filled in by a subsequent ACM computation step (e.g. `compute_accumulated_cost_matrix_cpu`).
+
+    Args:
+        cost_matrix (torch.Tensor): Local cost matrix, shape (n, m), as produced by `compute_cost_matrix`.
+        method (Method): DTW variant that determines the row-0 boundary condition.
+
+    Raises:
+        NotImplementedError: If `method` is not one of the supported `Method` values.
+
+    Returns:
+        torch.Tensor: Accumulated cost matrix of shape (n, m) with row 0 and column 0 initialized and all other
+            cells set to zero.
+    """
     acm = torch.zeros_like(cost_matrix)
     acm[:, 0] = cost_matrix[:, 0].cumsum(dim=0)
     if method == Method.CLASSIC:
@@ -29,6 +60,20 @@ def initialize_accumulated_cost_matrix(cost_matrix: torch.Tensor, method: Method
 
 
 def compute_accumulated_cost_matrix_cpu(cost_matrix: torch.Tensor, method: Method) -> torch.Tensor:
+    """Compute the accumulated cost matrix (ACM) via anti-diagonal-vectorized dynamic programming.
+
+    After the boundary conditions are set by `initialize_accumulated_cost_matrix`, every remaining cell (i, j) is
+    filled with `cost_matrix[i, j] + min(acm[i-1, j], acm[i, j-1], acm[i-1, j-1])`. Cells sharing an anti-diagonal
+    (i + j = k) only depend on cells from the previous anti-diagonal, so each anti-diagonal is updated in one
+    vectorized step, processed in increasing order.
+
+    Args:
+        cost_matrix (torch.Tensor): Local cost matrix, shape (n, m), as produced by `compute_cost_matrix`.
+        method (Method): DTW variant, forwarded to `initialize_accumulated_cost_matrix`.
+
+    Returns:
+        torch.Tensor: Fully populated accumulated cost matrix of shape (n, m).
+    """
     acm = initialize_accumulated_cost_matrix(cost_matrix, method)
     # acm[i, j] (on anti-diagonal k=i+j) depends solely on (i-1,j), (i,j-1), (i-1,j-1) —
     # all from the previous anti-diagonal (k-1). Every cell where i+j=k is independent,
@@ -124,7 +169,17 @@ def compute_accumulated_cost_matrix_gpu(cost_matrix: torch.Tensor, method: Metho
 
 @cache
 def compute_accumulated_cost_matrix_gpu_compiled() -> callable:
-    # Compiled once; deferred to first call.
+    """Lazily build and cache a `torch.compile`-d version of `compute_accumulated_cost_matrix_gpu`.
+
+    Compilation is deferred to the first call (rather than happening at import time) and the compiled callable is
+    memoized via `functools.cache`, so subsequent calls reuse the same compiled kernel instead of recompiling.
+
+    Raises:
+        RuntimeError: If no CUDA device with Compute Capability >= 7.0 is available.
+
+    Returns:
+        callable: A compiled version of `compute_accumulated_cost_matrix_gpu` with the same signature.
+    """
     if not is_cuda_available(min_cc=7):
         msg = "`compute_accumulated_cost_matrix_gpu_compiled` requires CUDA with Compute Capability >= 7.0."
         raise RuntimeError(msg)
@@ -134,6 +189,24 @@ def compute_accumulated_cost_matrix_gpu_compiled() -> callable:
 def _find_optimal_warping_path_subsequence_dtw(
     accumulated_cost_matrix: torch.Tensor, reference_backtrack_idx: int = -1
 ) -> list[tuple[int, int]]:
+    """Find the optimal warping path for Subsequence DTW.
+
+    Starts from the last row of the accumulated cost matrix (the end of the Query sequence, Q) at column
+    `reference_backtrack_idx`, and greedily walks to the cheapest of the diagonal, top, and left neighbors at each
+    step until row 0 is reached. Unlike Classic DTW, the path is free to start at any column of the Reference
+    sequence (R), so backtracking stops as soon as `y == 0` rather than requiring `x == 0` too.
+
+    Args:
+        accumulated_cost_matrix (torch.Tensor): Accumulated cost matrix, shape (n, m), as produced by
+            `compute_accumulated_cost_matrix_cpu`/`compute_accumulated_cost_matrix_gpu` with `Method.SUBSEQUENCE`.
+        reference_backtrack_idx (int, optional): Column of R to start backtracking from. If -1, the optimal column
+            is used, i.e. the argmin of the last row of `accumulated_cost_matrix` (ties broken by the earliest/
+            smallest index, which yields the shortest possible path). Defaults to -1.
+
+    Returns:
+        list[tuple[int, int]]: Sequence of (row/query, column/reference) cell indices forming the optimal warping path,
+            ordered from origin (row 0) to destination (last row).
+    """
     acm = accumulated_cost_matrix
     y = acm.shape[0] - 1
     # This realizes the idea of skipping the end of R when being matched to the Query sequence.
@@ -154,6 +227,20 @@ def _find_optimal_warping_path_subsequence_dtw(
 
 
 def _find_optimal_warping_path_classic_dtw(accumulated_cost_matrix: torch.Tensor) -> list[tuple[int, int]]:
+    """Find the optimal warping path for Classic DTW.
+
+    Starts from the last cell (bottom-right corner, matching the ends of both sequences) and greedily walks to the
+    cheapest of the diagonal, top, and left neighbors at each step until the origin cell (0, 0) is reached, which
+    both sequences must start from under this variant.
+
+    Args:
+        accumulated_cost_matrix (torch.Tensor): Accumulated cost matrix, shape (n, m), as produced by
+            `compute_accumulated_cost_matrix_cpu`/`compute_accumulated_cost_matrix_gpu` with `Method.CLASSIC`.
+
+    Returns:
+        list[tuple[int, int]]: Sequence of (row/query, column/reference) cell indices forming the optimal warping path,
+            ordered from origin (0, 0) to destination (last row, last column).
+    """
 
     def is_origin(y: int, x: int) -> bool:
         return not (y or x)
@@ -179,7 +266,23 @@ def _find_optimal_warping_path_classic_dtw(accumulated_cost_matrix: torch.Tensor
 
 
 def find_optimal_warping_path(accumulated_cost_matrix: torch.Tensor, method: Method, **kwargs) -> list[tuple[int, int]]:
+    """Find the optimal warping path for the given DTW variant.
 
+    Dispatch to the backtracking routine matching the given DTW variant.
+
+    Args:
+        accumulated_cost_matrix (torch.Tensor): Accumulated cost matrix to backtrack through, shape (n, m).
+        method (Method): DTW variant that determines which backtracking routine is used.
+        **kwargs: Extra keyword arguments forwarded to the variant-specific backtracking function (e.g.
+            `reference_backtrack_idx` for `Method.SUBSEQUENCE`).
+
+    Raises:
+        NotImplementedError: If `method` is not one of the supported `Method` values.
+
+    Returns:
+        list[tuple[int, int]]: Sequence of (row/query, column/reference) cell indices forming the optimal warping path,
+            ordered from origin to destination.
+    """
     if method == Method.CLASSIC:
         return _find_optimal_warping_path_classic_dtw(accumulated_cost_matrix)
     elif method == Method.SUBSEQUENCE:

@@ -23,6 +23,33 @@ def dtw(
     keep_artifacts: bool = False,
     use_gpu: bool = False,
 ) -> DTWOutput:
+    """Align two sequences (Reference and Query) using Dynamic Time Warping (DTW).
+
+    Computes the local cost matrix between the two sequences, accumulates it into an ACM (on CPU, or on GPU via a
+    compiled kernel when `use_gpu` is set and available), then backtracks the accumulated cost matrix to recover
+    the optimal warping path and its total distance.
+
+    Args:
+        query (torch.Tensor): Query sequence, shape (n, ...); the sequence being matched.
+        reference (torch.Tensor): Reference sequence, shape (m, ...); the sequence being matched against.
+        metric (ProximityMetric): Distance/similarity metric used to build the local cost matrix.
+        method (Method, optional): DTW variant to use. 2 supported methods are available:
+            - `Method.CLASSIC`, both sequences must align start-to-end;
+            - `Method.SUBSEQUENCE`, `reference` may be arbitrarily trimmed at both ends to find the best-matching
+              subsequence for `query`.
+            Defaults to Method.CLASSIC.
+        keep_artifacts (bool, optional): If True, retain the intermediate cost matrix and accumulated cost matrix
+            on the returned `DTWOutput`; otherwise they are discarded (set to None) to save memory. Defaults to
+            False.
+        use_gpu (bool, optional): If True, compute the accumulated cost matrix on GPU using a compiled kernel.
+            Falls back to the CPU implementation (with a warning) if no CUDA device with Compute Capability >= 7.0
+            is available. Defaults to False.
+
+    Returns:
+        DTWOutput: The alignment result, including the optimal warping path and its total distance, plus the
+            input sequences, metric, method, and (if `keep_artifacts` is True) the cost matrix and accumulated
+            cost matrix.
+    """
 
     assert query.dim() == 2, f"Expected `query` to be a tensor with 2 dimensions, got {query.dim()} dimension(s)."
     assert reference.dim() == 2, (
