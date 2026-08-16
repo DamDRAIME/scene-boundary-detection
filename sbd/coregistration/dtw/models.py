@@ -19,11 +19,11 @@ class Method(StrEnum):
 
 @dataclass
 class DTWOutput:
-    a: torch.Tensor
-    b: torch.Tensor
+    query: torch.Tensor
+    reference: torch.Tensor
     metric: ProximityMetric
     method: Method
     distance: float
-    optimal_warping_path: torch.Tensor
+    optimal_warping_path: list[tuple[int, int]]
     cost_matrix: torch.Tensor | None = None
     accumulated_cost_matrix: torch.Tensor | None = None

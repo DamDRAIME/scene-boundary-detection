@@ -19,8 +19,9 @@ def initialize_accumulated_cost_matrix(cost_matrix: torch.Tensor, method: Method
         # path must start at (0,0).
         acm[0, :] = cost_matrix[0, :].cumsum(dim=0)
     elif method == Method.SUBSEQUENCE:
-        # This initialization makes it possible to start at any position of the sequence Y without accumulating any
-        # cost, thus realizing the idea of skipping the beginning of Y when being matched to X.
+        # This initialization makes it possible to start at any position of the Reference sequence (R) without
+        # accumulating any cost, thus realizing the idea of skipping the beginning of R when being matched to the
+        # Query sequence (Q).
         acm[0, :] = cost_matrix[0, :]
     else:
         raise NotImplementedError(f"Unknown DTW method: {method}. Must be 'Classic' or 'Subsequence'.")
@@ -130,17 +131,13 @@ def compute_accumulated_cost_matrix_gpu_compiled() -> callable:
     return torch.compile(compute_accumulated_cost_matrix_gpu, backend="inductor")
 
 
-def _compute_optimal_warping_path_subsequence_dtw(
-    accumulated_cost_matrix: torch.Tensor, x_idx_start_backtrack: int = -1
-) -> torch.Tensor:
-    # x_idx_start_backtrack: Index to start back tracking from on X (b*); if set to -1, optimal index is used
-    # Choosing the cost-minimizing index in this row (instead of taking the last index as is done in the original DTW
-    # approach) realizes the idea of skipping the end of Y when being matched to X.
-    # If the optimal index needs to be found and argmin returns multiple indices, the first index is chosen to have
-    # the shortest path possible. This is because the first index corresponds to the earliest end of Y.
+def _find_optimal_warping_path_subsequence_dtw(
+    accumulated_cost_matrix: torch.Tensor, reference_backtrack_idx: int = -1
+) -> list[tuple[int, int]]:
     acm = accumulated_cost_matrix
     y = acm.shape[0] - 1
-    x = acm[-1, :].argmin().item() if x_idx_start_backtrack == -1 else x_idx_start_backtrack
+    # This realizes the idea of skipping the end of R when being matched to the Query sequence.
+    x = acm[-1, :].argmin().item() if reference_backtrack_idx == -1 else reference_backtrack_idx
     cell = (y, x)  # Start from destination
     path = [cell]
 
@@ -148,15 +145,16 @@ def _compute_optimal_warping_path_subsequence_dtw(
         if x == 0:
             next = (y - 1, 0)
         else:
-            _, next = min([acm[i, j], [i, j]] for i, j in [[y - 1, x - 1], [y - 1, x], [y, x - 1]])
+            _, next = min([acm[i, j], (i, j)] for i, j in [[y - 1, x - 1], [y - 1, x], [y, x - 1]])
         path.append(next)
         y, x = next
 
     path.reverse()  # From origin to destination
-    return torch.Tensor(path)
+    return path
 
 
-def _compute_optimal_warping_path_classic_dtw(accumulated_cost_matrix: torch.Tensor) -> torch.Tensor:
+def _find_optimal_warping_path_classic_dtw(accumulated_cost_matrix: torch.Tensor) -> list[tuple[int, int]]:
+
     def is_origin(y: int, x: int) -> bool:
         return not (y or x)
 
@@ -172,18 +170,19 @@ def _compute_optimal_warping_path_classic_dtw(accumulated_cost_matrix: torch.Ten
         elif x == 0:
             next = (y - 1, 0)
         else:
-            _, next = min([acm[i, j], [i, j]] for i, j in [[y - 1, x - 1], [y - 1, x], [y, x - 1]])
+            _, next = min([acm[i, j], (i, j)] for i, j in [[y - 1, x - 1], [y - 1, x], [y, x - 1]])
         path.append(next)
         cell = next
 
     path.reverse()  # From origin to destination
-    return torch.Tensor(path)
+    return path
 
 
-def compute_optimal_warping_path(accumulated_cost_matrix: torch.Tensor, method: Method, **kwargs) -> torch.Tensor:
+def find_optimal_warping_path(accumulated_cost_matrix: torch.Tensor, method: Method, **kwargs) -> list[tuple[int, int]]:
+
     if method == Method.CLASSIC:
-        return _compute_optimal_warping_path_classic_dtw(accumulated_cost_matrix)
+        return _find_optimal_warping_path_classic_dtw(accumulated_cost_matrix)
     elif method == Method.SUBSEQUENCE:
-        return _compute_optimal_warping_path_subsequence_dtw(accumulated_cost_matrix, **kwargs)
+        return _find_optimal_warping_path_subsequence_dtw(accumulated_cost_matrix, **kwargs)
     else:
         raise NotImplementedError(f"Unknown DTW method: {method}. Must be 'Classic' or 'Subsequence'.")

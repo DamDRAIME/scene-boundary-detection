@@ -14,8 +14,8 @@ from sbd.coregistration.dtw.utils import (
 
 
 def dtw(
-    a: torch.Tensor,
-    b: torch.Tensor,
+    query: torch.Tensor,
+    reference: torch.Tensor,
     metric: ProximityMetric,
     method: Method = Method.CLASSIC,
     # step_pattern,
@@ -24,10 +24,12 @@ def dtw(
     use_gpu: bool = False,
 ) -> DTWOutput:
 
-    assert a.dim() == 2, f"Expected `a` to be a tensor with 2 dimensions, got {a.dim()} dimension(s)."
-    assert b.dim() == 2, f"Expected `b` to be a tensor with 2 dimensions, got {b.dim()} dimension(s)."
+    assert query.dim() == 2, f"Expected `query` to be a tensor with 2 dimensions, got {query.dim()} dimension(s)."
+    assert reference.dim() == 2, (
+        f"Expected `reference` to be a tensor with 2 dimensions, got {reference.dim()} dimension(s)."
+    )
 
-    cm = compute_cost_matrix(a, b, metric)
+    cm = compute_cost_matrix(query, reference, metric)
 
     if use_gpu:
         if not is_cuda_available(min_cc=7):
@@ -40,14 +42,13 @@ def dtw(
         acm = compute_accumulated_cost_matrix_cpu(cm, method=method)
 
     path = compute_optimal_warping_path(acm, method=method)
-    destination_cell_idx = tuple(path[-1].long().tolist())
 
     return DTWOutput(
-        a,
-        b,
+        query,
+        reference,
         metric,
         method,
-        distance=acm[destination_cell_idx].item(),
+        distance=acm[path[-1]].item(),
         optimal_warping_path=path,
         cost_matrix=cm if keep_artifacts else None,
         accumulated_cost_matrix=acm if keep_artifacts else None,
