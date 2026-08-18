@@ -9,7 +9,7 @@ from sbd.coregistration.dtw.utils import (
     compute_accumulated_cost_matrix_cpu,
     compute_accumulated_cost_matrix_gpu_compiled,
     compute_cost_matrix,
-    compute_optimal_warping_path,
+    find_optimal_warping_path,
 )
 
 
@@ -68,7 +68,7 @@ def dtw(
     else:
         acm = compute_accumulated_cost_matrix_cpu(cm, method=method)
 
-    path = compute_optimal_warping_path(acm, method=method)
+    path = find_optimal_warping_path(acm, method=method)
 
     return DTWOutput(
         query,
