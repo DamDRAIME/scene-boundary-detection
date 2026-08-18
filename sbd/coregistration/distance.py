@@ -54,6 +54,51 @@ def cosine(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     return dot_product(a_norm, b_norm)
 
 
+def cosine_distance(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    """
+    Computes the cosine distance between two tensors, i.e. 1 - cos_sim(a[i], b[j]) for all i and j.
+
+    Unlike `-cos_sim` (what `negate_fn(cosine, ...)` gives you), this is non-negative (range [0, 2]).
+    DTW's accumulated-cost recurrence takes a *minimum sum* of local costs along a path; if the local
+    cost is negative on average (as `-cos_sim` is here, since embeddings from most models have a
+    positive baseline similarity even for unrelated inputs), summing more terms only drives the total
+    further down, so the "cheapest" path degenerates into the *longest possible* one instead of the
+    best-aligned one. A non-negative cost keeps every additional cell in the path costing something,
+    so DTW is actually incentivized toward short, well-matched paths.
+
+    Args:
+        a (torch.Tensor): The first tensor.
+        b (torch.Tensor): The second tensor.
+
+    Returns:
+        torch.Tensor: Matrix with res[i][j] = 1 - cos_sim(a[i], b[j])
+    """
+    return 1 - cosine(a, b)
+
+
+def dot_product_distance(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    """
+    Computes 1 - dot_product(a[i], b[j]) for all i and j.
+
+    Same rationale as `cosine_distance`: `-dot_product` is unbounded and typically negative on
+    average, which biases DTW toward the longest possible path instead of the best-aligned one.
+
+    Unlike `cosine`, `dot_product` isn't intrinsically bounded to [-1, 1] — that only holds when `a`
+    and `b` are unit-normalized, in which case `dot_product` *is* `cosine` and this is equivalent to
+    `cosine_distance`. That's true for every embedding source currently used in this project (e.g.
+    `SentenceTransformer("all-MiniLM-L6-v2").encode(...)` returns unit vectors), but isn't guaranteed
+    in general: feeding this un-normalized vectors can reproduce the same unbounded-cost bug.
+
+    Args:
+        a (torch.Tensor): The first tensor.
+        b (torch.Tensor): The second tensor.
+
+    Returns:
+        torch.Tensor: Matrix with res[i][j] = 1 - dot_prod(a[i], b[j])
+    """
+    return 1 - dot_product(a, b)
+
+
 def manhattan(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     """
     Computes the manhattan distance between two tensors, i.e. -manhattan_distance(a[i], b[j]) for all i and j.
@@ -84,9 +129,9 @@ def euclidean(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
 
 def get_distance_fn(metric: ProximityMetric) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
     if metric == ProximityMetric.COSINE:
-        return partial(negate_fn, cosine)
+        return cosine_distance
     if metric == ProximityMetric.DOT_PRODUCT:
-        return partial(negate_fn, dot_product)
+        return dot_product_distance
     if metric == ProximityMetric.EUCLIDEAN:
         return euclidean
     if metric == ProximityMetric.MANHATTAN:
