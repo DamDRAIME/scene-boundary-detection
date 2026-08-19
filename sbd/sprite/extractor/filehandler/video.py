@@ -6,7 +6,7 @@ import ffmpeg
 import numpy as np
 
 from sbd.exceptions import SpriteExtractionError, VideoParsingError
-from sbd.sprite.extractor.base import SpriteFileHandler
+from sbd.sprite.extractor.filehandler.base import SpriteFileHandler
 from sbd.sprite.extractor.filehandler.models import ExtractionMethod, SourceMetadata, SpriteImg
 from sbd.sprite.extractor.filehandler.utils import resolve_shape
 
